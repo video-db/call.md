@@ -19,6 +19,16 @@ declare module 'videodb' {
     endUserId?: string;
     callbackUrl?: string;
     metadata?: Record<string, unknown>;
+    exportedVideoId?: string;
+    rtstreams?: RTStream[];
+    createdAt?: number;
+  }
+
+  export interface ListCaptureSessionsConfig {
+    status?: string;
+    endUserId?: string;
+    limit?: number;
+    cursor?: string;
   }
 
   export interface Video {
@@ -45,6 +55,8 @@ declare module 'videodb' {
   export interface Collection {
     id: string;
     createCaptureSession(options: CreateCaptureSessionOptions): Promise<CaptureSession>;
+    getCaptureSession(sessionId: string): Promise<CaptureSession>;
+    listCaptureSessions(config?: ListCaptureSessionsConfig): Promise<CaptureSession[]>;
     getVideo(videoId: string): Promise<Video>;
     generateText(
       prompt: string,

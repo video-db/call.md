@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { initDatabase, closeDatabase } from './db';
+import { initDatabase, closeDatabase, getUserByAccessToken } from './db';
 import { startServer, stopServer } from './server';
 import {
   setupIpcHandlers,
@@ -26,6 +26,7 @@ import {
 import { logger } from './lib/logger';
 import { applyVideoDBPatches } from './lib/videodb-patch';
 import { getLockFilePath } from './lib/paths';
+import { createSessionRecoveryService } from './services/session-recovery.service';
 
 let mainWindow: BrowserWindow | null = null;
 const isDev = !app.isPackaged;
@@ -195,6 +196,53 @@ async function autoRegister(): Promise<void> {
   }
 }
 
+/**
+ * Recover recordings that were exported by VideoDB while the app was closed.
+ * This checks for any recordings stuck in 'processing' status and updates them
+ * if VideoDB has already completed the export.
+ */
+async function recoverPendingSessions(): Promise<void> {
+  const appConfig = loadAppConfig();
+  const runtimeConfig = loadRuntimeConfig();
+
+  // Try to get API key from app config first
+  let apiKey = appConfig.apiKey;
+
+  // If not in config, look up the user in the database using the access token
+  if (!apiKey && appConfig.accessToken) {
+    const user = getUserByAccessToken(appConfig.accessToken);
+    if (user) {
+      apiKey = user.apiKey;
+    }
+  }
+
+  if (!apiKey) {
+    logger.debug('No API key available, skipping session recovery');
+    return;
+  }
+
+  logger.info('Starting background session recovery...');
+
+  try {
+    const recoveryService = createSessionRecoveryService(
+      apiKey,
+      runtimeConfig.apiUrl
+    );
+
+    const result = await recoveryService.recoverPendingSessions();
+
+    if (result.recovered > 0) {
+      logger.info(
+        { recovered: result.recovered, failed: result.failed, skipped: result.skipped },
+        'Session recovery completed'
+      );
+    }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logger.error({ error: errorMsg }, 'Background session recovery failed');
+  }
+}
+
 async function startServices(): Promise<void> {
   const runtimeConfig = loadRuntimeConfig();
   const port = runtimeConfig.apiPort;
@@ -270,6 +318,11 @@ app.whenReady().then(async () => {
     await createWindow();
 
     await autoRegister();
+
+    // Recover any sessions that exported while app was closed (fire and forget)
+    recoverPendingSessions().catch(() => {
+      // Error already logged in recoverPendingSessions
+    });
 
     logger.info('App started successfully');
   } catch (error) {

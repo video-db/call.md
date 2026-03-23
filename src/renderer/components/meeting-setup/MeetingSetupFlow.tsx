@@ -1,13 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useMeetingSetupStore } from '../../stores/meeting-setup.store';
 import { useSession } from '../../hooks/useSession';
 import { trpc } from '../../api/trpc';
-import { SourcesStep } from './SourcesStep';
 import { InfoStep } from './InfoStep';
 import { QuestionsStep } from './QuestionsStep';
 import { ChecklistStep } from './ChecklistStep';
 
-export function MeetingSetupFlow() {
+interface MeetingSetupFlowProps {
+  onCancel: () => void;
+}
+
+export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
   const {
     step,
     name,
@@ -31,13 +34,10 @@ export function MeetingSetupFlow() {
   const generateQuestionsMutation = trpc.meetingSetup.generateProbingQuestions.useMutation();
   const generateChecklistMutation = trpc.meetingSetup.generateChecklist.useMutation();
 
-  const handleSourcesNext = () => {
+  // Start at 'info' step since sources are already selected in HomeView
+  useEffect(() => {
     setStep('info');
-  };
-
-  const handleInfoBack = () => {
-    setStep('sources');
-  };
+  }, [setStep]);
 
   const handleInfoNext = async (newName: string, newDescription: string) => {
     setInfo(newName, newDescription);
@@ -111,16 +111,12 @@ export function MeetingSetupFlow() {
         </div>
       )}
 
-      {step === 'sources' && (
-        <SourcesStep onNext={handleSourcesNext} />
-      )}
-
       {step === 'info' && (
         <InfoStep
           initialName={name}
           initialDescription={description}
           isGenerating={isGenerating}
-          onBack={handleInfoBack}
+          onBack={onCancel}
           onNext={handleInfoNext}
         />
       )}

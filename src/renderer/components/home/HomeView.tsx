@@ -12,9 +12,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, Clock, Loader2, ChevronRight } from 'lucide-react';
 import { trpc } from '../../api/trpc';
-import { usePermissions } from '../../hooks/usePermissions';
 import { useMCP } from '../../hooks/useMCP';
-import { useSession } from '../../hooks/useSession';
 import { useSessionStore } from '../../stores/session.store';
 import { RecordingCard } from '../history/RecordingCard';
 import { RecordingDetailPage } from '../history/RecordingDetailPage';
@@ -312,19 +310,18 @@ function MCPServerItem({
 }
 
 interface HomeViewProps {
+  onStartRecording: () => void;
   onNavigateToHistory: () => void;
   onNavigateToSettings: () => void;
 }
 
-export function HomeView({ onNavigateToHistory, onNavigateToSettings }: HomeViewProps) {
+export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSettings }: HomeViewProps) {
   const [selectedRecordingId, setSelectedRecordingId] = useState<number | null>(null);
   const [calendarStatus, setCalendarStatus] = useState<'disconnected' | 'connected' | 'loading'>('loading');
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingMeeting[]>([]);
   const [eventNotifications, setEventNotifications] = useState<Record<string, boolean>>({});
-  const [isStarting, setIsStarting] = useState(false);
 
-  // Session and recording state
-  const { startRecording } = useSession();
+  // Session state for stream toggles
   const sessionStore = useSessionStore();
   const { streams, setStreams } = sessionStore;
 
@@ -332,19 +329,6 @@ export function HomeView({ onNavigateToHistory, onNavigateToSettings }: HomeView
   const connectedServers = servers.filter(
     (s) => s.isEnabled && connectionStates[s.id]?.status === 'connected'
   );
-
-  // Handle start recording
-  const handleStartRecording = async () => {
-    if (isStarting) return;
-    setIsStarting(true);
-    try {
-      await startRecording();
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-    } finally {
-      setIsStarting(false);
-    }
-  };
 
   // Fetch recordings
   const { data: recordings, isLoading: recordingsLoading } = trpc.recordings.list.useQuery(undefined, {
@@ -465,17 +449,13 @@ export function HomeView({ onNavigateToHistory, onNavigateToSettings }: HomeView
               </p>
             </div>
             <button
-              onClick={handleStartRecording}
-              disabled={isStarting || (!streams.systemAudio && !streams.microphone)}
+              onClick={onStartRecording}
+              disabled={!streams.systemAudio && !streams.microphone}
               className="flex items-center gap-[4px] bg-[#ff4000] hover:bg-[#e63900] disabled:opacity-50 disabled:cursor-not-allowed px-[20px] py-[12px] rounded-[12px] shadow-[0px_1.272px_15.267px_0px_rgba(0,0,0,0.05)] transition-colors"
             >
-              {isStarting ? (
-                <Loader2 className="w-[20px] h-[20px] text-white animate-spin" />
-              ) : (
-                <RecordingIcon />
-              )}
+              <RecordingIcon />
               <span className="text-[14px] font-semibold text-white tracking-[-0.28px]">
-                {isStarting ? 'Starting...' : 'Start Recording'}
+                Start Recording
               </span>
             </button>
           </div>

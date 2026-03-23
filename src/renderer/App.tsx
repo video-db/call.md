@@ -363,6 +363,7 @@ function SettingsView() {
 export function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [showRecordingPrefs, setShowRecordingPrefs] = useState(false);
+  const [showMeetingSetup, setShowMeetingSetup] = useState(false);
 
   const configStore = useConfigStore();
   const sessionStore = useSessionStore();
@@ -385,8 +386,14 @@ export function App() {
   // Check if actively recording or processing
   const isActivelyRecording = sessionStatus === 'recording' || sessionStatus === 'processing' || sessionStatus === 'stopping' || sessionStatus === 'starting';
 
-  // Handle returning from recording mode
+  // Handle start recording button from HomeView - show MeetingSetupFlow
+  const handleStartRecording = () => {
+    setShowMeetingSetup(true);
+  };
+
+  // Handle returning from recording/setup mode
   const handleExitRecordingMode = () => {
+    setShowMeetingSetup(false);
     sessionStore.reset();
   };
 
@@ -448,11 +455,23 @@ export function App() {
       return <RecordingView onBack={handleExitRecordingMode} />;
     }
 
+    // If showing meeting setup flow (after clicking Start Recording from HomeView)
+    if (showMeetingSetup && activeTab === 'home') {
+      return (
+        <div className="flex flex-col h-full bg-white">
+          <div className="flex-1 flex items-center justify-center overflow-auto py-8">
+            <MeetingSetupFlow onCancel={() => setShowMeetingSetup(false)} />
+          </div>
+        </div>
+      );
+    }
+
     // Main app
     switch (activeTab) {
       case 'home':
         return (
           <HomeView
+            onStartRecording={handleStartRecording}
             onNavigateToHistory={() => setActiveTab('history')}
             onNavigateToSettings={() => setActiveTab('settings')}
           />

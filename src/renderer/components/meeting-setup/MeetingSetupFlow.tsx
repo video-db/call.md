@@ -10,6 +10,20 @@ interface MeetingSetupFlowProps {
   onCancel: () => void;
 }
 
+/**
+ * Generate a default meeting name based on current time
+ * Format: "Meeting at 10:30 AM"
+ */
+function generateDefaultMeetingName(): string {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `Meeting at ${timeStr}`;
+}
+
 export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
   const {
     step,
@@ -27,6 +41,7 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
     setIsGenerating,
     setError,
     getMeetingSetupData,
+    reset,
   } = useMeetingSetupStore();
 
   const { startRecording, isStarting } = useSession();
@@ -38,6 +53,23 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
   useEffect(() => {
     setStep('info');
   }, [setStep]);
+
+  // Skip setup and start recording immediately with a generic name
+  const handleSkipAndRecord = async () => {
+    const defaultName = generateDefaultMeetingName();
+
+    // Reset any partial setup data and set only the name
+    reset();
+    setInfo(defaultName, '');
+
+    // Start recording with minimal data (just the name)
+    await startRecording({
+      name: defaultName,
+      description: '',
+      questions: [],
+      checklist: [],
+    });
+  };
 
   const handleInfoNext = async (newName: string, newDescription: string) => {
     setInfo(newName, newDescription);
@@ -103,44 +135,59 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
     await startRecording(setupData);
   };
 
+  const isSkipping = isStarting && !isGenerating;
+
   return (
-    <div className="w-full max-w-2xl mx-auto px-4">
-      {error && (
-        <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm animate-in fade-in duration-200">
-          {error}
-        </div>
-      )}
+    <div className="h-full w-full flex flex-col items-center justify-center relative overflow-hidden">
+      {/* Main content */}
+      <div className="w-full max-w-[480px] px-6 relative z-10">
+        {error && (
+          <div className="mb-6 p-[16px] bg-[#fff5f5] border border-[#ffdfdf] rounded-[12px] flex items-start gap-[12px]">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0 mt-0.5">
+              <circle cx="10" cy="10" r="8" stroke="#dc2626" strokeWidth="1.5" />
+              <path d="M10 6v5M10 13.5v.5" stroke="#dc2626" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <p className="text-[13px] text-[#dc2626] leading-[20px]">{error}</p>
+          </div>
+        )}
 
-      {step === 'info' && (
-        <InfoStep
-          initialName={name}
-          initialDescription={description}
-          isGenerating={isGenerating}
-          onBack={onCancel}
-          onNext={handleInfoNext}
-        />
-      )}
+        {step === 'info' && (
+          <InfoStep
+            initialName={name}
+            initialDescription={description}
+            isGenerating={isGenerating}
+            isSkipping={isSkipping}
+            onBack={onCancel}
+            onNext={handleInfoNext}
+            onSkip={handleSkipAndRecord}
+          />
+        )}
 
-      {step === 'questions' && (
-        <QuestionsStep
-          questions={questions}
-          isGenerating={isGenerating}
-          onBack={handleQuestionsBack}
-          onNext={handleQuestionsNext}
-          onAnswerChange={setQuestionAnswer}
-        />
-      )}
+        {step === 'questions' && (
+          <QuestionsStep
+            questions={questions}
+            isGenerating={isGenerating}
+            isSkipping={isSkipping}
+            onBack={handleQuestionsBack}
+            onNext={handleQuestionsNext}
+            onAnswerChange={setQuestionAnswer}
+            onSkip={handleSkipAndRecord}
+          />
+        )}
 
-      {step === 'checklist' && (
-        <ChecklistStep
-          name={name}
-          description={description}
-          checklist={checklist}
-          isStarting={isStarting}
-          onBack={handleChecklistBack}
-          onStart={handleStartRecording}
-        />
-      )}
+        {step === 'checklist' && (
+          <ChecklistStep
+            name={name}
+            description={description}
+            checklist={checklist}
+            isStarting={isStarting}
+            isSkipping={isSkipping}
+            onBack={handleChecklistBack}
+            onStart={handleStartRecording}
+            onSkip={handleSkipAndRecord}
+          />
+        )}
+      </div>
     </div>
   );
 }

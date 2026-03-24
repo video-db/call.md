@@ -1,16 +1,21 @@
 /**
  * Live Assist Panel Component
  *
- * Shows live AI insights and MCP findings during recording:
- * - Bullet list of insights/suggestions
- * - MCP Findings section with markdown content
+ * Shows real-time AI-generated assists during recording:
+ * - Questions to ask (ask)
+ * - Things to say (speak)
+ * - Actions to take (act)
+ *
+ * Also shows MCP Findings section.
  */
 
 import React from 'react';
-import { Zap } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useLiveAssist } from '../../hooks/useLiveAssist';
+import { useMCP } from '../../hooks/useMCP';
+import type { LiveAssistItem } from '../../../shared/types/live-assist.types';
 
-// Lightning bolt icon for Live Assist
+// Lightbulb icon for Live Assist
 function LightbulbIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -41,35 +46,56 @@ function EmptyInsightsIcon() {
   );
 }
 
-interface LiveAssistPanelProps {
-  insights: string[];
-  mcpFindings: string;
+interface AssistItemProps {
+  item: LiveAssistItem;
 }
 
-export function LiveAssistPanel({ insights, mcpFindings }: LiveAssistPanelProps) {
-  const hasContent = insights.length > 0 || mcpFindings.length > 0;
+function AssistItem({ item }: AssistItemProps) {
+  return (
+    <div className="flex flex-col justify-center w-full">
+      <ul>
+        <li className="list-disc ms-[21px]">
+          <span className="text-[14px] text-black leading-[22px]">{item.text}</span>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+export function LiveAssistPanel() {
+  const { assists } = useLiveAssist();
+  const { activeResults } = useMCP();
+
+  // Get the latest MCP result for display
+  const latestMCPResult = activeResults.length > 0 ? activeResults[activeResults.length - 1] : null;
+  const mcpFindings = latestMCPResult?.content?.text || latestMCPResult?.content?.markdown || '';
+
+  const hasAssists = assists.length > 0;
 
   return (
-    <div className="bg-white border border-[#e4e4ec] rounded-[12px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.04),0px_1px_2px_0px_rgba(0,0,0,0.02)] p-[17px] flex flex-col gap-[20px] max-h-[520px]">
+    <div className="bg-white border border-[#e4e4ec] rounded-[12px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.04),0px_1px_2px_0px_rgba(0,0,0,0.02)] p-[17px] flex flex-col gap-[20px]">
       {/* Header */}
       <div className="flex items-center gap-[6px]">
         <LightbulbIcon />
         <span className="font-medium text-[16px] text-black">Live Assist</span>
       </div>
 
-      {/* Insights List */}
-      {insights.length > 0 && (
-        <div className="flex flex-col gap-[6px]">
-          {insights.map((insight, idx) => (
-            <div key={idx} className="flex items-start">
-              <span className="text-[14px] text-black leading-[22px]">
-                <span className="mr-2">•</span>
-                {insight}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Assists List */}
+      <div className="bg-white rounded-[16px] max-h-[206px] min-h-[80px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {hasAssists ? (
+          <div className="flex flex-col gap-[6px] text-[14px] text-black">
+            {assists.map((assist) => (
+              <AssistItem key={assist.id} item={assist} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-[80px] text-center">
+            <p className="text-[13px] text-[#969696]">
+              AI suggestions will appear here as the conversation progresses
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* MCP Findings Section */}
       <div className="border border-[#efefef] rounded-[12px] overflow-hidden">

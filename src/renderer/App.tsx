@@ -11,8 +11,6 @@ import { useSessionStore } from './stores/session.store';
 import { usePermissions } from './hooks/usePermissions';
 import { useGlobalRecorderEvents } from './hooks/useGlobalRecorderEvents';
 import { useCopilot } from './hooks/useCopilot';
-import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
-import { Button } from './components/ui/button';
 import { ErrorToast } from './components/ui/error-toast';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import {
@@ -23,6 +21,7 @@ import { useCopilotStore } from './stores/copilot.store';
 import { useMeetingSetupStore } from './stores/meeting-setup.store';
 import { MCPServersPanel } from './components/settings/MCPServersPanel';
 import { CalendarPanel } from './components/settings/CalendarPanel';
+import { WorkflowsPanel } from './components/settings/WorkflowsPanel';
 import { CalendarAuthBanner } from './components/calendar';
 import { MeetingSetupFlow } from './components/meeting-setup';
 import { StepIndicators } from './components/auth/AuthView';
@@ -226,14 +225,20 @@ function RecordingView({ onBack }: RecordingViewProps) {
         <div className="flex-1 overflow-hidden p-6">
           <div className="max-w-4xl mx-auto h-full flex flex-col">
             <div className="flex items-center justify-between mb-4 shrink-0">
-              <h2 className="text-lg font-semibold">Call Complete</h2>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleGoBack}>
+              <h2 className="text-[18px] font-semibold text-[#141420]">Call Complete</h2>
+              <div className="flex gap-[8px]">
+                <button
+                  onClick={handleGoBack}
+                  className="px-[14px] py-[8px] border border-[#ededf3] rounded-[10px] text-[13px] font-medium text-[#464646] hover:bg-[#f7f7f7] transition-colors"
+                >
                   Back to Home
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleStartNewCall}>
+                </button>
+                <button
+                  onClick={handleStartNewCall}
+                  className="px-[14px] py-[8px] bg-[#ec5b16] hover:bg-[#d9520f] rounded-[10px] text-[13px] font-medium text-white transition-colors"
+                >
                   Start New Call
-                </Button>
+                </button>
               </div>
             </div>
             <div className="flex-1 min-h-0 overflow-auto">
@@ -296,7 +301,7 @@ function RecordingView({ onBack }: RecordingViewProps) {
             {hasChecklist && <MeetingAgendaPanel checklist={checklist} />}
 
             {/* Live Assist Panel */}
-            <LiveAssistPanel insights={insights} mcpFindings={mcpFindings} />
+            <LiveAssistPanel />
           </div>
         </div>
       </div>
@@ -306,7 +311,7 @@ function RecordingView({ onBack }: RecordingViewProps) {
 
 function SettingsView() {
   const [activeSettingsTab, setActiveSettingsTab] = useState<
-    'account' | 'calendar' | 'mcpServers'
+    'account' | 'calendar' | 'mcpServers' | 'workflows'
   >('account');
   const configStore = useConfigStore();
 
@@ -314,66 +319,78 @@ function SettingsView() {
     { id: 'account' as const, label: 'Account' },
     { id: 'calendar' as const, label: 'Calendar' },
     { id: 'mcpServers' as const, label: 'MCP Servers' },
+    { id: 'workflows' as const, label: 'Workflows' },
   ];
 
   return (
-    <div className="space-y-4 h-full overflow-auto">
-      {/* Settings Tabs */}
-      <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
-        {settingsTabs.map((tab) => (
-          <Button
-            key={tab.id}
-            variant={activeSettingsTab === tab.id ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveSettingsTab(tab.id)}
-          >
-            {tab.label}
-          </Button>
-        ))}
-      </div>
+    <div className="h-full overflow-auto bg-[#f7f7f7] p-[24px]">
+      <div className="max-w-[720px] mx-auto">
+        {/* Settings Tabs */}
+        <div className="flex gap-[4px] p-[4px] bg-white border border-[#ededf3] rounded-[12px] w-fit mb-[24px]">
+          {settingsTabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSettingsTab(tab.id)}
+              className={`px-[16px] py-[8px] text-[14px] font-medium rounded-[8px] transition-colors ${
+                activeSettingsTab === tab.id
+                  ? 'bg-[#ec5b16] text-white'
+                  : 'text-[#464646] hover:bg-[#f7f7f7]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Tab Content */}
-      <div className="max-w-4xl">
-        {activeSettingsTab === 'account' && (
-          <div className="max-w-md space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Account</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div>
-                  <p className="text-sm text-muted-foreground">Name</p>
-                  <p className="font-medium">{configStore.userName || 'Not set'}</p>
+        {/* Tab Content */}
+        <div className="space-y-[16px]">
+          {activeSettingsTab === 'account' && (
+            <div className="space-y-[16px]">
+              {/* Account Card */}
+              <div className="bg-white border border-[#ededf3] rounded-[12px] shadow-[0px_1.272px_15.267px_0px_rgba(0,0,0,0.05)]">
+                <div className="px-[20px] py-[16px] border-b border-[#ededf3]">
+                  <h3 className="text-[16px] font-semibold text-[#141420]">Account</h3>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">API Key</p>
-                  <p className="font-mono text-xs">
-                    {configStore.apiKey ? `${configStore.apiKey.slice(0, 8)}...` : 'Not set'}
+                <div className="px-[20px] py-[16px] space-y-[16px]">
+                  <div>
+                    <p className="text-[13px] text-[#969696] mb-[4px]">Name</p>
+                    <p className="text-[14px] font-medium text-[#141420]">
+                      {configStore.userName || 'Not set'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[13px] text-[#969696] mb-[4px]">API Key</p>
+                    <p className="text-[13px] font-mono text-[#464646]">
+                      {configStore.apiKey ? `${configStore.apiKey.slice(0, 8)}...` : 'Not set'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* About Card */}
+              <div className="bg-white border border-[#ededf3] rounded-[12px] shadow-[0px_1.272px_15.267px_0px_rgba(0,0,0,0.05)]">
+                <div className="px-[20px] py-[16px] border-b border-[#ededf3]">
+                  <h3 className="text-[16px] font-semibold text-[#141420]">About</h3>
+                </div>
+                <div className="px-[20px] py-[16px] space-y-[8px]">
+                  <p className="text-[14px] text-[#464646] leading-[20px]">
+                    Meeting Copilot is a desktop app for recording meetings with real-time
+                    transcription and AI-powered insights.
+                  </p>
+                  <p className="text-[13px] text-[#969696]">
+                    Built with Electron, React, and VideoDB.
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+          )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>About</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Meeting Copilot is a desktop app for recording meetings with real-time
-                  transcription and AI-powered insights.
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Built with Electron, React, and VideoDB.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+          {activeSettingsTab === 'calendar' && <CalendarPanel />}
 
-        {activeSettingsTab === 'calendar' && <CalendarPanel />}
+          {activeSettingsTab === 'mcpServers' && <MCPServersPanel />}
 
-        {activeSettingsTab === 'mcpServers' && <MCPServersPanel />}
+          {activeSettingsTab === 'workflows' && <WorkflowsPanel />}
+        </div>
       </div>
     </div>
   );

@@ -5,9 +5,6 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import {
   Calendar,
   Check,
@@ -19,6 +16,39 @@ import {
 import type { UpcomingMeeting } from '../../../shared/types/calendar.types';
 
 type CalendarStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+// Status Badge Component
+function StatusBadge({ status }: { status: CalendarStatus }) {
+  switch (status) {
+    case 'connected':
+      return (
+        <div className="flex items-center gap-[6px] px-[10px] py-[4px] bg-[#ecfdf5] border border-[#a7f3d0] rounded-[8px]">
+          <Check className="h-[14px] w-[14px] text-[#059669]" />
+          <span className="text-[13px] font-medium text-[#059669]">Connected</span>
+        </div>
+      );
+    case 'connecting':
+      return (
+        <div className="flex items-center gap-[6px] px-[10px] py-[4px] bg-[#fff5ec] border border-[#fed7aa] rounded-[8px] animate-pulse">
+          <Loader2 className="h-[14px] w-[14px] text-[#ec5b16] animate-spin" />
+          <span className="text-[13px] font-medium text-[#ec5b16]">Connecting...</span>
+        </div>
+      );
+    case 'error':
+      return (
+        <div className="flex items-center gap-[6px] px-[10px] py-[4px] bg-[#fef2f2] border border-[#fecaca] rounded-[8px]">
+          <AlertCircle className="h-[14px] w-[14px] text-[#dc2626]" />
+          <span className="text-[13px] font-medium text-[#dc2626]">Error</span>
+        </div>
+      );
+    default:
+      return (
+        <div className="flex items-center gap-[6px] px-[10px] py-[4px] bg-[#f7f7f7] border border-[#ededf3] rounded-[8px]">
+          <span className="text-[13px] font-medium text-[#969696]">Not Connected</span>
+        </div>
+      );
+  }
+}
 
 export function CalendarPanel() {
   const [status, setStatus] = useState<CalendarStatus>('disconnected');
@@ -106,163 +136,138 @@ export function CalendarPanel() {
     }
   };
 
-  const getStatusBadge = () => {
-    switch (status) {
-      case 'connected':
-        return (
-          <Badge className="bg-green-500 text-white">
-            <Check className="h-3 w-3 mr-1" />
-            Connected
-          </Badge>
-        );
-      case 'connecting':
-        return (
-          <Badge variant="secondary" className="animate-pulse">
-            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            Connecting...
-          </Badge>
-        );
-      case 'error':
-        return (
-          <Badge variant="destructive">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            Error
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline">
-            Not Connected
-          </Badge>
-        );
-    }
-  };
-
   const formatEventTime = (event: UpcomingMeeting) => {
     if (event.isAllDay) return 'All day';
     return event.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[16px]">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+          <h2 className="text-[16px] font-semibold text-[#141420] flex items-center gap-[8px]">
+            <Calendar className="h-[18px] w-[18px]" />
             Google Calendar
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-[13px] text-[#969696] mt-[2px]">
             Get notified before your meetings start
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {getStatusBadge()}
+        <div className="flex items-center gap-[8px]">
+          <StatusBadge status={status} />
           {status === 'connected' && (
-            <Button variant="outline" size="icon" onClick={checkAuthStatus} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
+            <button
+              onClick={checkAuthStatus}
+              disabled={isLoading}
+              className="w-[32px] h-[32px] flex items-center justify-center border border-[#ededf3] rounded-[8px] bg-white hover:bg-[#f7f7f7] transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`h-[14px] w-[14px] text-[#464646] ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
           )}
         </div>
       </div>
 
       {/* Connection Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Calendar Connection</CardTitle>
-          <CardDescription>
+      <div className="bg-white border border-[#ededf3] rounded-[12px] shadow-[0px_1.272px_15.267px_0px_rgba(0,0,0,0.05)]">
+        <div className="px-[20px] py-[16px] border-b border-[#ededf3]">
+          <h3 className="text-[15px] font-semibold text-[#141420]">Calendar Connection</h3>
+          <p className="text-[13px] text-[#969696] mt-[4px]">
             Connect your Google Calendar to receive notifications 2 minutes before meetings start.
-            The app will run in your system tray to monitor upcoming events.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          </p>
+        </div>
+        <div className="px-[20px] py-[20px]">
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
+            <div className="p-[12px] bg-[#fef2f2] border border-[#fecaca] rounded-[10px] mb-[16px]">
+              <p className="text-[13px] text-[#dc2626] flex items-center gap-[8px]">
+                <AlertCircle className="h-[14px] w-[14px]" />
                 {error}
               </p>
             </div>
           )}
 
           {status === 'disconnected' && (
-            <div className="flex flex-col items-center py-6">
-              <Calendar className="h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
-              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">
+            <div className="flex flex-col items-center py-[32px]">
+              <div className="w-[48px] h-[48px] flex items-center justify-center bg-[#f7f7f7] rounded-[12px] mb-[16px]">
+                <Calendar className="h-[24px] w-[24px] text-[#969696]" />
+              </div>
+              <p className="text-[14px] text-[#464646] text-center mb-[16px]">
                 Connect your Google Calendar to get started
               </p>
-              <Button onClick={handleConnect}>
-                <Calendar className="h-4 w-4 mr-2" />
+              <button
+                onClick={handleConnect}
+                className="flex items-center gap-[8px] px-[16px] py-[10px] bg-[#ec5b16] hover:bg-[#d9520f] text-white text-[14px] font-medium rounded-[10px] transition-colors"
+              >
+                <Calendar className="h-[16px] w-[16px]" />
                 Connect Google Calendar
-              </Button>
+              </button>
             </div>
           )}
 
           {status === 'connecting' && (
-            <div className="flex flex-col items-center py-6">
-              <Loader2 className="h-12 w-12 text-blue-500 mb-4 animate-spin" />
-              <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
+            <div className="flex flex-col items-center py-[32px]">
+              <Loader2 className="h-[48px] w-[48px] text-[#ec5b16] mb-[16px] animate-spin" />
+              <p className="text-[14px] text-[#464646] text-center">
                 Connecting to Google Calendar...
               </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-2">
+              <p className="text-[12px] text-[#969696] text-center mt-[8px]">
                 A browser window will open for authorization
               </p>
             </div>
           )}
 
           {status === 'connected' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Check className="h-5 w-5 text-green-500" />
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
+            <div className="space-y-[16px]">
+              <div className="flex items-center justify-between p-[12px] bg-[#ecfdf5] rounded-[10px]">
+                <div className="flex items-center gap-[8px]">
+                  <Check className="h-[18px] w-[18px] text-[#059669]" />
+                  <span className="text-[14px] font-medium text-[#059669]">
                     Calendar connected
                   </span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
+                <button
                   onClick={handleDisconnect}
                   disabled={isLoading}
+                  className="flex items-center gap-[6px] px-[12px] py-[6px] border border-[#ededf3] rounded-[8px] bg-white hover:bg-[#f7f7f7] text-[13px] font-medium text-[#464646] transition-colors disabled:opacity-50"
                 >
-                  <LogOut className="h-4 w-4 mr-2" />
+                  <LogOut className="h-[14px] w-[14px]" />
                   Disconnect
-                </Button>
+                </button>
               </div>
 
               {/* Upcoming Events Preview */}
               {upcomingEvents.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <div className="space-y-[8px]">
+                  <h4 className="text-[14px] font-medium text-[#141420]">
                     Upcoming Meetings (next 24h)
                   </h4>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                  <div className="space-y-[8px] max-h-[192px] overflow-y-auto">
                     {upcomingEvents.slice(0, 5).map((event) => (
                       <div
                         key={event.id}
-                        className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/50 rounded"
+                        className="flex items-center justify-between p-[10px] bg-[#f7f7f7] rounded-[8px]"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{event.summary}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                          <p className="text-[14px] font-medium text-[#141420] truncate">{event.summary}</p>
+                          <p className="text-[12px] text-[#969696]">
                             {formatEventTime(event)}
                             {event.minutesUntil > 0 && event.minutesUntil <= 60 && (
-                              <span className="ml-2 text-amber-600 dark:text-amber-400">
+                              <span className="ml-[8px] text-[#ec5b16]">
                                 in {event.minutesUntil}m
                               </span>
                             )}
                           </p>
                         </div>
                         {event.meetLink && (
-                          <Badge variant="outline" className="text-xs ml-2">
-                            Meet
-                          </Badge>
+                          <div className="px-[8px] py-[2px] bg-white border border-[#ededf3] rounded-[6px] ml-[8px]">
+                            <span className="text-[11px] font-medium text-[#464646]">Meet</span>
+                          </div>
                         )}
                       </div>
                     ))}
                   </div>
                   {upcomingEvents.length > 5 && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+                    <p className="text-[12px] text-[#969696] text-center">
                       +{upcomingEvents.length - 5} more events
                     </p>
                   )}
@@ -270,7 +275,7 @@ export function CalendarPanel() {
               )}
 
               {upcomingEvents.length === 0 && (
-                <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
+                <p className="text-[14px] text-[#969696] text-center py-[16px]">
                   No upcoming meetings in the next 24 hours
                 </p>
               )}
@@ -278,54 +283,56 @@ export function CalendarPanel() {
           )}
 
           {status === 'error' && (
-            <div className="flex flex-col items-center py-6">
-              <AlertCircle className="h-12 w-12 text-red-400 mb-4" />
-              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">
+            <div className="flex flex-col items-center py-[32px]">
+              <div className="w-[48px] h-[48px] flex items-center justify-center bg-[#fef2f2] rounded-[12px] mb-[16px]">
+                <AlertCircle className="h-[24px] w-[24px] text-[#dc2626]" />
+              </div>
+              <p className="text-[14px] text-[#464646] text-center mb-[16px]">
                 {error || 'Something went wrong'}
               </p>
-              <Button onClick={handleConnect}>
-                <RefreshCw className="h-4 w-4 mr-2" />
+              <button
+                onClick={handleConnect}
+                className="flex items-center gap-[8px] px-[16px] py-[10px] bg-[#ec5b16] hover:bg-[#d9520f] text-white text-[14px] font-medium rounded-[10px] transition-colors"
+              >
+                <RefreshCw className="h-[16px] w-[16px]" />
                 Try Again
-              </Button>
+              </button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Info Card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">1</span>
+      <div className="bg-white border border-[#ededf3] rounded-[12px] shadow-[0px_1.272px_15.267px_0px_rgba(0,0,0,0.05)]">
+        <div className="px-[20px] py-[16px]">
+          <div className="space-y-[12px]">
+            <div className="flex items-start gap-[12px]">
+              <div className="w-[24px] h-[24px] rounded-full bg-[#fff5ec] flex items-center justify-center shrink-0">
+                <span className="text-[12px] font-semibold text-[#ec5b16]">1</span>
               </div>
-              <p>
-                <strong>System Tray:</strong> When you close the app, it continues running in your
-                system tray to monitor your calendar.
+              <p className="text-[13px] text-[#464646] leading-[18px]">
+                <span className="font-medium text-[#141420]">System Tray:</span> When you close the app, it continues running in your system tray to monitor your calendar.
               </p>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">2</span>
+            <div className="flex items-start gap-[12px]">
+              <div className="w-[24px] h-[24px] rounded-full bg-[#fff5ec] flex items-center justify-center shrink-0">
+                <span className="text-[12px] font-semibold text-[#ec5b16]">2</span>
               </div>
-              <p>
-                <strong>Notifications:</strong> You'll receive a notification 2 minutes before each
-                meeting starts.
+              <p className="text-[13px] text-[#464646] leading-[18px]">
+                <span className="font-medium text-[#141420]">Notifications:</span> You'll receive a notification 2 minutes before each meeting starts.
               </p>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">3</span>
+            <div className="flex items-start gap-[12px]">
+              <div className="w-[24px] h-[24px] rounded-full bg-[#fff5ec] flex items-center justify-center shrink-0">
+                <span className="text-[12px] font-semibold text-[#ec5b16]">3</span>
               </div>
-              <p>
-                <strong>Privacy:</strong> Your calendar data stays on your device. We only read
-                event titles and times to send notifications.
+              <p className="text-[13px] text-[#464646] leading-[18px]">
+                <span className="font-medium text-[#141420]">Privacy:</span> Your calendar data stays on your device. We only read event titles and times to send notifications.
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

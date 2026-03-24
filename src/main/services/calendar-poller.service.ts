@@ -20,7 +20,7 @@ const log = logger.child({ module: 'calendar-poller' });
 // Polling configuration
 const POLL_INTERVAL_MS = 20_000; // 20 seconds
 const DEFAULT_NOTIFY_MINUTES_BEFORE = 2; // Default: notify 2 minutes before meeting
-const UPCOMING_HOURS = 2; // Fetch events within next 2 hours
+const UPCOMING_HOURS = 24; // Fetch events within next 24 hours
 
 class CalendarPollerService extends EventEmitter {
   private pollInterval: NodeJS.Timeout | null = null;

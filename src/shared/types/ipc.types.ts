@@ -4,6 +4,7 @@ import type {
   CalendarEvents,
   UpcomingMeeting,
 } from './calendar.types';
+import type { Workflow } from './workflow.types';
 
 export interface StartRecordingParams {
   config: CaptureConfig;
@@ -167,6 +168,26 @@ export interface CopilotConfig {
   enableNudges: boolean;
 }
 
+export interface LiveAssistApi {
+  start: () => Promise<{ success: boolean }>;
+  stop: () => Promise<{ success: boolean }>;
+  addTranscript: (text: string, source: 'mic' | 'system_audio') => Promise<{ success: boolean }>;
+  clear: () => Promise<{ success: boolean }>;
+}
+
+export interface LiveAssistEvents {
+  onUpdate: (callback: (data: { assists: any[]; processedAt: number }) => void) => () => void;
+}
+
+export interface WorkflowsApi {
+  getAll: () => Promise<{ success: boolean; workflows?: Workflow[]; error?: string }>;
+  get: (id: string) => Promise<{ success: boolean; workflow?: Workflow; error?: string }>;
+  create: (request: { name: string; webhookUrl: string; enabled?: boolean }) => Promise<{ success: boolean; workflow?: Workflow; error?: string }>;
+  update: (id: string, request: { name?: string; webhookUrl?: string; enabled?: boolean }) => Promise<{ success: boolean; workflow?: Workflow; error?: string }>;
+  delete: (id: string) => Promise<{ success: boolean; error?: string }>;
+  test: (webhookUrl: string) => Promise<{ success: boolean; statusCode?: number; error?: string; responseTime?: number }>;
+}
+
 export interface IpcApi {
   capture: {
     startRecording: (params: StartRecordingParams) => Promise<StartRecordingResult>;
@@ -175,6 +196,8 @@ export interface IpcApi {
     resumeTracks: (tracks: string[]) => Promise<void>;
     listChannels: (sessionToken: string, apiUrl?: string) => Promise<Channel[]>;
   };
+  liveAssist: LiveAssistApi;
+  liveAssistOn: LiveAssistEvents;
   permissions: {
     checkMicPermission: () => Promise<boolean>;
     checkScreenPermission: () => Promise<boolean>;
@@ -243,6 +266,7 @@ export interface IpcApi {
   };
   calendar: CalendarApi;
   calendarOn: CalendarEvents;
+  workflows: WorkflowsApi;
 }
 
 export type IpcChannel =

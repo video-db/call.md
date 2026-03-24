@@ -234,6 +234,16 @@ export function initDatabase(): ReturnType<typeof drizzle<typeof schema>> {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- Workflows table
+    CREATE TABLE IF NOT EXISTS workflows (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      webhook_url TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   ensureRecordingColumns();
@@ -274,6 +284,7 @@ function ensureRecordingColumns(): void {
   addColumnIfMissing('probing_questions', "ALTER TABLE recordings ADD COLUMN probing_questions TEXT");
   addColumnIfMissing('meeting_checklist', "ALTER TABLE recordings ADD COLUMN meeting_checklist TEXT");
   addColumnIfMissing('collection_id', "ALTER TABLE recordings ADD COLUMN collection_id TEXT");
+  addColumnIfMissing('post_meeting_checklist', "ALTER TABLE recordings ADD COLUMN post_meeting_checklist TEXT");
 }
 
 function ensureNudgesHistorySchema(): void {
@@ -475,7 +486,8 @@ export function deleteTranscriptSegmentsBySession(sessionId: string) {
   const database = getDatabase();
   return database
     .delete(schema.transcriptSegments)
-    .where(eq(schema.transcriptSegments.sessionId, sessionId));
+    .where(eq(schema.transcriptSegments.sessionId, sessionId))
+    .run();
 }
 
 
@@ -496,7 +508,7 @@ export function getBookmarksByRecording(recordingId: number) {
 
 export function deleteBookmark(id: string) {
   const database = getDatabase();
-  return database.delete(schema.bookmarks).where(eq(schema.bookmarks.id, id));
+  return database.delete(schema.bookmarks).where(eq(schema.bookmarks.id, id)).run();
 }
 
 
@@ -705,13 +717,13 @@ export function upsertSetting(data: schema.NewCopilotSetting) {
 
 export function deleteSetting(key: string) {
   const database = getDatabase();
-  return database.delete(schema.copilotSettings).where(eq(schema.copilotSettings.key, key));
+  return database.delete(schema.copilotSettings).where(eq(schema.copilotSettings.key, key)).run();
 }
 
 
 export function deleteCueCard(id: string) {
   const database = getDatabase();
-  return database.delete(schema.cueCards).where(eq(schema.cueCards.id, id));
+  return database.delete(schema.cueCards).where(eq(schema.cueCards.id, id)).run();
 }
 
 export function updatePlaybook(id: string, data: Partial<schema.Playbook>) {
@@ -726,7 +738,7 @@ export function updatePlaybook(id: string, data: Partial<schema.Playbook>) {
 
 export function deletePlaybook(id: string) {
   const database = getDatabase();
-  return database.delete(schema.playbooks).where(eq(schema.playbooks.id, id));
+  return database.delete(schema.playbooks).where(eq(schema.playbooks.id, id)).run();
 }
 
 export function setDefaultPlaybook(id: string) {
@@ -1504,7 +1516,7 @@ export function updateMCPServerStatus(
 
 export function deleteMCPServer(id: string) {
   const database = getDatabase();
-  return database.delete(schema.mcpServers).where(eq(schema.mcpServers.id, id));
+  return database.delete(schema.mcpServers).where(eq(schema.mcpServers.id, id)).run();
 }
 
 // MCP Tool Call CRUD Operations
@@ -1587,7 +1599,8 @@ export function deleteMCPOauthToken(serverId: string) {
   const database = getDatabase();
   return database
     .delete(schema.mcpOauthTokens)
-    .where(eq(schema.mcpOauthTokens.serverId, serverId));
+    .where(eq(schema.mcpOauthTokens.serverId, serverId))
+    .run();
 }
 
 // Calendar Preferences CRUD Operations
@@ -1639,6 +1652,55 @@ export function upsertCalendarPreferences(data: {
     })
     .returning()
     .get();
+}
+
+// Workflow CRUD Operations
+
+export function getAllWorkflows() {
+  const database = getDatabase();
+  return database
+    .select()
+    .from(schema.workflows)
+    .orderBy(desc(schema.workflows.createdAt))
+    .all();
+}
+
+export function getWorkflowById(id: string) {
+  const database = getDatabase();
+  return database
+    .select()
+    .from(schema.workflows)
+    .where(eq(schema.workflows.id, id))
+    .get();
+}
+
+export function getEnabledWorkflows() {
+  const database = getDatabase();
+  return database
+    .select()
+    .from(schema.workflows)
+    .where(eq(schema.workflows.enabled, true))
+    .all();
+}
+
+export function createWorkflow(data: schema.NewWorkflow) {
+  const database = getDatabase();
+  return database.insert(schema.workflows).values(data).returning().get();
+}
+
+export function updateWorkflow(id: string, data: Partial<schema.Workflow>) {
+  const database = getDatabase();
+  return database
+    .update(schema.workflows)
+    .set({ ...data, updatedAt: new Date().toISOString() })
+    .where(eq(schema.workflows.id, id))
+    .returning()
+    .get();
+}
+
+export function deleteWorkflow(id: string) {
+  const database = getDatabase();
+  return database.delete(schema.workflows).where(eq(schema.workflows.id, id)).run();
 }
 
 export { schema };

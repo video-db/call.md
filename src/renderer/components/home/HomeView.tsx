@@ -164,6 +164,26 @@ function EmptyMCPIcon() {
   );
 }
 
+function WorkflowIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 7h4v6H3V7zM13 7h4v6h-4V7z" stroke="black" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 10h2M11 10h2" stroke="black" strokeWidth="1.25" strokeLinecap="round" />
+      <circle cx="10" cy="10" r="1.5" stroke="black" strokeWidth="1.25" />
+    </svg>
+  );
+}
+
+function EmptyWorkflowIcon() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 11h6v10H5V11zM21 11h6v10h-6V11z" stroke="#969696" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M11 16h3M18 16h3" stroke="#969696" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="16" cy="16" r="2.5" stroke="#969696" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 function GoogleIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -309,10 +329,50 @@ function MCPServerItem({
   );
 }
 
+// Workflow Item Component
+function WorkflowItem({
+  workflow,
+  onEdit,
+}: {
+  workflow: { id: string; name: string; enabled: boolean };
+  onEdit: () => void;
+}) {
+  return (
+    <div className="bg-white border border-[#ededf3] rounded-[10px] px-[15px] py-[13px]">
+      <div className="flex items-center gap-[12px]">
+        <div className="w-[20px] h-[20px] flex items-center justify-center">
+          <WorkflowIcon />
+        </div>
+        <div className="flex-1 flex flex-col gap-[2px]">
+          <p className="text-[14px] font-medium text-black tracking-[0.07px]">{workflow.name}</p>
+          <p className="text-[12px] text-[#969696]">
+            {workflow.enabled ? 'Active' : 'Disabled'}
+          </p>
+        </div>
+        <button
+          onClick={onEdit}
+          className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#f7f7f7] rounded-[6px] transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10.5 1.75L12.25 3.5M1.75 12.25L2.333 9.833L10.083 2.083L11.917 3.917L4.167 11.667L1.75 12.25Z" stroke="#969696" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface HomeViewProps {
   onStartRecording: () => void;
   onNavigateToHistory: () => void;
   onNavigateToSettings: () => void;
+}
+
+interface WorkflowData {
+  id: string;
+  name: string;
+  webhookUrl: string;
+  enabled: boolean;
 }
 
 export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSettings }: HomeViewProps) {
@@ -320,6 +380,7 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
   const [calendarStatus, setCalendarStatus] = useState<'disconnected' | 'connected' | 'loading'>('loading');
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingMeeting[]>([]);
   const [eventNotifications, setEventNotifications] = useState<Record<string, boolean>>({});
+  const [workflows, setWorkflows] = useState<WorkflowData[]>([]);
 
   // Session state for stream toggles
   const sessionStore = useSessionStore();
@@ -395,6 +456,21 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Load workflows
+  useEffect(() => {
+    const loadWorkflows = async () => {
+      try {
+        const result = await window.electronAPI.workflows.getAll();
+        if (result.success && result.workflows) {
+          setWorkflows(result.workflows);
+        }
+      } catch {
+        // Ignore errors
+      }
+    };
+    loadWorkflows();
   }, []);
 
   const handleConnectCalendar = async () => {
@@ -648,6 +724,54 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
             <div className="flex flex-col gap-[12px]">
               {connectedServers.map((server) => (
                 <MCPServerItem key={server.id} server={server} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Workflows Section */}
+        <div className="bg-white border border-[#efefef] rounded-[16px] p-[16px] flex flex-col gap-[20px]">
+          {/* Header */}
+          <div className="flex items-center gap-[4px]">
+            <WorkflowIcon />
+            <span className="flex-1 text-[18px] font-medium text-black">Workflows</span>
+            <button
+              onClick={onNavigateToSettings}
+              className="flex items-center gap-[4px] text-[14px] font-medium text-[#ec5b16] hover:opacity-80"
+            >
+              <span className="text-[14px]">+</span>
+              Add
+            </button>
+          </div>
+
+          {/* Content */}
+          {workflows.length === 0 ? (
+            <div className="flex flex-col items-center gap-[16px] px-[8px] py-[16px]">
+              <EmptyWorkflowIcon />
+              <div className="flex flex-col items-center gap-[8px]">
+                <p className="text-[16px] font-medium text-black text-center leading-[20px]">
+                  No workflows yet
+                </p>
+                <p className="text-[13px] text-[#969696] text-center leading-[19px]">
+                  Send meeting data to n8n, Zapier, and other automation tools.
+                </p>
+              </div>
+              <button
+                onClick={onNavigateToSettings}
+                className="flex items-center gap-[4px] bg-white border border-[#e4e4ec] px-[16px] py-[12px] rounded-[12px] shadow-[0px_1.272px_15.267px_0px_rgba(0,0,0,0.05)] hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-[14px]">+</span>
+                <span className="text-[14px] font-medium text-black">Add workflow</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-[12px]">
+              {workflows.map((workflow) => (
+                <WorkflowItem
+                  key={workflow.id}
+                  workflow={workflow}
+                  onEdit={onNavigateToSettings}
+                />
               ))}
             </div>
           )}

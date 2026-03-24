@@ -219,6 +219,25 @@ export interface MCPOAuthConfig {
   redirectUri?: string;
 }
 
+// Workflow Types
+export interface Workflow {
+  id: string;
+  name: string;
+  webhookUrl: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowApi {
+  getAll: () => Promise<{ success: boolean; workflows?: Workflow[]; error?: string }>;
+  get: (id: string) => Promise<{ success: boolean; workflow?: Workflow; error?: string }>;
+  create: (request: { name: string; webhookUrl: string; enabled?: boolean }) => Promise<{ success: boolean; workflow?: Workflow; error?: string }>;
+  update: (id: string, request: { name?: string; webhookUrl?: string; enabled?: boolean }) => Promise<{ success: boolean; workflow?: Workflow; error?: string }>;
+  delete: (id: string) => Promise<{ success: boolean; error?: string }>;
+  test: (webhookUrl: string) => Promise<{ success: boolean; statusCode?: number; error?: string; responseTime?: number }>;
+}
+
 export interface MCPApi {
   // Server management
   getServers: () => Promise<{ success: boolean; servers?: MCPServerConfig[]; connectionStates?: Record<string, { status: string; error?: string }>; error?: string }>;
@@ -300,6 +319,22 @@ const api: IpcApi = {
     resumeTracks: (tracks: string[]) => ipcRenderer.invoke('recorder-resume-tracks', tracks),
     listChannels: (sessionToken: string, apiUrl?: string) =>
       ipcRenderer.invoke('recorder-list-channels', sessionToken, apiUrl),
+  },
+
+  liveAssist: {
+    start: () => ipcRenderer.invoke('live-assist:start'),
+    stop: () => ipcRenderer.invoke('live-assist:stop'),
+    addTranscript: (text: string, source: 'mic' | 'system_audio') =>
+      ipcRenderer.invoke('live-assist:add-transcript', text, source),
+    clear: () => ipcRenderer.invoke('live-assist:clear'),
+  },
+
+  liveAssistOn: {
+    onUpdate: (callback: (data: { assists: any[]; processedAt: number }) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
+      ipcRenderer.on('live-assist:update', listener);
+      return () => ipcRenderer.removeListener('live-assist:update', listener);
+    },
   },
 
   permissions: {
@@ -520,6 +555,18 @@ const api: IpcApi = {
       return () => ipcRenderer.removeListener('calendar:events-updated', listener);
     },
   } as CalendarEvents,
+
+  // Workflows API
+  workflows: {
+    getAll: () => ipcRenderer.invoke('workflows:get-all'),
+    get: (id: string) => ipcRenderer.invoke('workflows:get', id),
+    create: (request: { name: string; webhookUrl: string; enabled?: boolean }) =>
+      ipcRenderer.invoke('workflows:create', request),
+    update: (id: string, request: { name?: string; webhookUrl?: string; enabled?: boolean }) =>
+      ipcRenderer.invoke('workflows:update', id, request),
+    delete: (id: string) => ipcRenderer.invoke('workflows:delete', id),
+    test: (webhookUrl: string) => ipcRenderer.invoke('workflows:test', webhookUrl),
+  } as WorkflowApi,
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);
@@ -534,6 +581,7 @@ declare global {
       mcpOn: MCPEvents;
       calendar: CalendarApi;
       calendarOn: CalendarEvents;
+      workflows: WorkflowApi;
     };
   }
 }

@@ -35,7 +35,9 @@ export const recordings = sqliteTable('recordings', {
   meetingName: text('meeting_name'),
   meetingDescription: text('meeting_description'),
   probingQuestions: text('probing_questions'), // JSON: ProbingQuestion[]
-  meetingChecklist: text('meeting_checklist'), // JSON: string[]
+  meetingChecklist: text('meeting_checklist'), // JSON: string[] (in-meeting agenda)
+  // Post-meeting analysis
+  postMeetingChecklist: text('post_meeting_checklist'), // JSON: string[] (action items after meeting)
 });
 
 // Meeting Co-Pilot Tables
@@ -339,3 +341,21 @@ export const calendarPreferences = sqliteTable('calendar_preferences', {
 export type CalendarPreferences = typeof calendarPreferences.$inferSelect;
 export type NewCalendarPreferences = typeof calendarPreferences.$inferInsert;
 export type RecordingBehavior = 'always_ask' | 'default_record' | 'no_notification';
+
+// Workflows Tables
+
+/**
+ * Workflows
+ * Webhook integrations for post-meeting automation (n8n, Zapier, etc.)
+ */
+export const workflows = sqliteTable('workflows', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  webhookUrl: text('webhook_url').notNull(),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
+export type Workflow = typeof workflows.$inferSelect;
+export type NewWorkflow = typeof workflows.$inferInsert;

@@ -7,7 +7,7 @@
  * - Pause/Stop buttons
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Pause, Square, Loader2 } from 'lucide-react';
 import { useSession } from '../../hooks/useSession';
 import { useMeetingSetupStore } from '../../stores/meeting-setup.store';
@@ -62,17 +62,16 @@ function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-function formatTimeRange(): string {
-  const now = new Date();
-  const endTime = new Date(now.getTime() + 45 * 60 * 1000); // 45 min meeting
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  return `${formatTime(now)} - ${formatTime(endTime)}`;
+function formatStartTime(date: Date): string {
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 export function RecordingHeader() {
   const { status, elapsedTime, isRecording, isStopping, isPaused, stopRecording, pauseRecording, resumeRecording } = useSession();
   const { name } = useMeetingSetupStore();
+
+  // Capture start time once when component mounts
+  const [startTime] = useState(() => new Date());
 
   const meetingName = name || 'Meeting';
 
@@ -83,7 +82,7 @@ export function RecordingHeader() {
         <h1 className="font-semibold text-[24px] text-black tracking-[0.12px]">{meetingName}</h1>
         <div className="flex items-center gap-[4px]">
           <ClockIcon />
-          <span className="text-[14px] text-[#464646] tracking-[0.07px]">{formatTimeRange()}</span>
+          <span className="text-[14px] text-[#464646] tracking-[0.07px]">Started at: {formatStartTime(startTime)}</span>
         </div>
       </div>
 

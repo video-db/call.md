@@ -119,6 +119,7 @@ function toUpcomingMeeting(event: CalendarEvent): UpcomingMeeting | null {
   return {
     id: event.id,
     summary: event.summary || 'No title',
+    description: event.description,
     startTime,
     endTime,
     minutesUntil,

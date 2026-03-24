@@ -104,6 +104,9 @@ class TrayService {
           label,
           click: () => {
             this.showMainWindow();
+            // Emit event to open MeetingSetupFlow with this meeting's data
+            const poller = getCalendarPoller();
+            poller.emit('open-meeting-setup', event);
           },
         });
       }

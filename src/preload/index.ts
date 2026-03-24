@@ -540,6 +540,8 @@ const api: IpcApi = {
     isSignedIn: (): Promise<CalendarAuthStatusResult> => ipcRenderer.invoke('calendar:is-signed-in'),
     getUpcomingEvents: (hours?: number): Promise<CalendarEventsResult> =>
       ipcRenderer.invoke('calendar:get-events', hours),
+    setRecordingMeeting: (eventId: string | null): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke('calendar:set-recording-meeting', eventId),
   } as CalendarApi,
 
   // Calendar event listeners
@@ -553,6 +555,21 @@ const api: IpcApi = {
       const listener = (_event: Electron.IpcRendererEvent, data: UpcomingMeeting[]) => callback(data);
       ipcRenderer.on('calendar:events-updated', listener);
       return () => ipcRenderer.removeListener('calendar:events-updated', listener);
+    },
+    onOpenMeetingSetup: (callback: (meeting: UpcomingMeeting) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: UpcomingMeeting) => callback(data);
+      ipcRenderer.on('calendar:open-meeting-setup', listener);
+      return () => ipcRenderer.removeListener('calendar:open-meeting-setup', listener);
+    },
+    onAutoStartRecording: (callback: (meeting: UpcomingMeeting) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: UpcomingMeeting) => callback(data);
+      ipcRenderer.on('calendar:auto-start-recording', listener);
+      return () => ipcRenderer.removeListener('calendar:auto-start-recording', listener);
+    },
+    onOverlappingMeeting: (callback: (data: { currentMeeting?: UpcomingMeeting; nextMeeting: UpcomingMeeting }) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: { currentMeeting?: UpcomingMeeting; nextMeeting: UpcomingMeeting }) => callback(data);
+      ipcRenderer.on('calendar:overlapping-meeting', listener);
+      return () => ipcRenderer.removeListener('calendar:overlapping-meeting', listener);
     },
   } as CalendarEvents,
 

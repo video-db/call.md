@@ -61,6 +61,7 @@ export interface CalendarEvent {
 export interface UpcomingMeeting {
   id: string;
   summary: string;
+  description?: string;
   startTime: Date;
   endTime: Date;
   minutesUntil: number;
@@ -109,9 +110,16 @@ export interface CalendarApi {
   signOut: () => Promise<{ success: boolean; error?: string }>;
   isSignedIn: () => Promise<CalendarAuthStatusResult>;
   getUpcomingEvents: (hours?: number) => Promise<CalendarEventsResult>;
+  // Notify poller about recording state (for overlapping meeting detection)
+  setRecordingMeeting: (eventId: string | null) => Promise<{ success: boolean }>;
 }
 
 export interface CalendarEvents {
   onAuthRequired: (callback: () => void) => () => void;
   onEventsUpdated: (callback: (events: UpcomingMeeting[]) => void) => () => void;
+  // Notification action events
+  onOpenMeetingSetup: (callback: (meeting: UpcomingMeeting) => void) => () => void;
+  onAutoStartRecording: (callback: (meeting: UpcomingMeeting) => void) => () => void;
+  // Overlapping meeting event (recording active + new meeting starting)
+  onOverlappingMeeting: (callback: (data: { currentMeeting?: UpcomingMeeting; nextMeeting: UpcomingMeeting }) => void) => () => void;
 }

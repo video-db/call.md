@@ -503,16 +503,122 @@ export function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [showRecordingPrefs, setShowRecordingPrefs] = useState(false);
   const [showMeetingSetup, setShowMeetingSetup] = useState(false);
+  const [pendingOverlap, setPendingOverlap] = useState<{
+    currentMeeting?: { id: string; summary: string };
+    nextMeeting: { id: string; summary: string; description?: string };
+  } | null>(null);
 
   const configStore = useConfigStore();
   const sessionStore = useSessionStore();
-  const { status: sessionStatus } = useSession();
+  const meetingSetupStore = useMeetingSetupStore();
+  const { status: sessionStatus, startRecording, stopRecording } = useSession();
   const { allGranted, loading: permissionsLoading } = usePermissions();
 
   // Global listener for recorder events - persists during navigation
   useGlobalRecorderEvents();
 
   const isAuthenticated = configStore.isAuthenticated();
+
+  // Listen for calendar notification events
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Handle "open meeting setup" from notification/tray click
+    const unsubOpenSetup = window.electronAPI.calendarOn.onOpenMeetingSetup((meeting) => {
+      // Pre-fill the meeting setup store with meeting data
+      meetingSetupStore.reset();
+      meetingSetupStore.setInfo(meeting.summary, meeting.description || '');
+
+      // Switch to home tab and show meeting setup
+      setActiveTab('home');
+      setShowMeetingSetup(true);
+    });
+
+    // Handle "auto-start recording" from notification or default_record behavior
+    const unsubAutoStart = window.electronAPI.calendarOn.onAutoStartRecording(async (meeting) => {
+      // Skip UX entirely - start recording with meeting name
+      meetingSetupStore.reset();
+      meetingSetupStore.setInfo(meeting.summary, meeting.description || '');
+
+      // Ensure we're on home tab
+      setActiveTab('home');
+
+      // Notify main process about which meeting we're recording (for overlapping detection)
+      await window.electronAPI.calendar.setRecordingMeeting(meeting.id);
+
+      // Start recording directly with meeting data
+      await startRecording({
+        name: meeting.summary,
+        description: meeting.description || '',
+        questions: [],
+        checklist: [],
+      });
+    });
+
+    // Handle overlapping meeting notification
+    const unsubOverlap = window.electronAPI.calendarOn.onOverlappingMeeting((data) => {
+      // Store the overlap data for handling
+      setPendingOverlap({
+        currentMeeting: data.currentMeeting ? {
+          id: data.currentMeeting.id,
+          summary: data.currentMeeting.summary,
+        } : undefined,
+        nextMeeting: {
+          id: data.nextMeeting.id,
+          summary: data.nextMeeting.summary,
+          description: data.nextMeeting.description,
+        },
+      });
+    });
+
+    return () => {
+      unsubOpenSetup();
+      unsubAutoStart();
+      unsubOverlap();
+    };
+  }, [isAuthenticated, meetingSetupStore, startRecording]);
+
+  // Handle pending overlap action (stop current, start next)
+  React.useEffect(() => {
+    const handleOverlap = async () => {
+      if (!pendingOverlap) return;
+
+      const { nextMeeting } = pendingOverlap;
+
+      // Stop current recording
+      await stopRecording();
+
+      // Clear the current recording meeting
+      await window.electronAPI.calendar.setRecordingMeeting(null);
+
+      // Wait a moment for recording to fully stop
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Notify main process about new meeting we're recording
+      await window.electronAPI.calendar.setRecordingMeeting(nextMeeting.id);
+
+      // Start recording with next meeting
+      await startRecording({
+        name: nextMeeting.summary,
+        description: nextMeeting.description || '',
+        questions: [],
+        checklist: [],
+      });
+
+      setPendingOverlap(null);
+    };
+
+    if (pendingOverlap) {
+      handleOverlap();
+    }
+  }, [pendingOverlap, stopRecording, startRecording]);
+
+  // Clear recording meeting when session becomes idle
+  React.useEffect(() => {
+    if (sessionStatus === 'idle') {
+      window.electronAPI.calendar.setRecordingMeeting(null);
+    }
+  }, [sessionStatus]);
 
   // Handle clearing session errors
   const handleDismissError = () => {

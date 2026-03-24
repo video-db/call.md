@@ -18,6 +18,7 @@ import type {
   CalendarSignInResult,
   CalendarEventsResult,
   CalendarAuthStatusResult,
+  UpcomingMeeting,
 } from '../../shared/types/calendar.types';
 
 const logger = createChildLogger('ipc-calendar');
@@ -107,6 +108,13 @@ export function setupCalendarHandlers(): void {
     }
   });
 
+  ipcMain.handle('calendar:set-recording-meeting', async (_event, eventId: string | null): Promise<{ success: boolean }> => {
+    logger.info({ eventId }, 'Setting recording meeting');
+    const poller = getCalendarPoller();
+    poller.setCurrentRecordingEvent(eventId);
+    return { success: true };
+  });
+
   // Set up event forwarding from poller
   const poller = getCalendarPoller();
 
@@ -119,6 +127,21 @@ export function setupCalendarHandlers(): void {
     sendToRenderer('calendar:events-updated', events);
   });
 
+  poller.on('open-meeting-setup', (meeting) => {
+    logger.info({ meetingId: meeting.id }, 'Opening meeting setup from notification');
+    sendToRenderer('calendar:open-meeting-setup', meeting);
+  });
+
+  poller.on('auto-start-recording', (meeting) => {
+    logger.info({ meetingId: meeting.id }, 'Auto-starting recording from notification');
+    sendToRenderer('calendar:auto-start-recording', meeting);
+  });
+
+  poller.on('overlapping-meeting', (data) => {
+    logger.info({ nextMeetingId: data.nextMeeting.id }, 'Overlapping meeting notification');
+    sendToRenderer('calendar:overlapping-meeting', data);
+  });
+
   logger.info('Calendar IPC handlers registered');
 }
 
@@ -127,6 +150,7 @@ export function removeCalendarHandlers(): void {
   ipcMain.removeHandler('calendar:sign-out');
   ipcMain.removeHandler('calendar:is-signed-in');
   ipcMain.removeHandler('calendar:get-events');
+  ipcMain.removeHandler('calendar:set-recording-meeting');
 
   logger.info('Calendar IPC handlers removed');
 }

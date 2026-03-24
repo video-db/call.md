@@ -89,7 +89,7 @@ export function RecordingPreferencesView({ onComplete }: RecordingPreferencesVie
     },
     {
       value: 'no_notification',
-      title: "Don't record unless I say so",
+      title: "Start recording via app only",
       description: 'Only records when you manually start a session',
     },
   ];

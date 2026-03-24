@@ -46,6 +46,8 @@ import {
   type PostMeetingSummary,
 } from './summary-generator.service';
 
+import { exportMeetingToMarkdown } from '../markdown-export.service';
+
 // MCP Services
 import {
   getConnectionOrchestrator,
@@ -591,6 +593,10 @@ export class MeetingCopilotService extends EventEmitter {
       log.error({ err: error, errorMessage: errMsg, recordingId }, 'Failed to save call data');
     }
 
+    this.exportToMarkdown(recordingId, summary, metrics, duration, segments, meetingContext).catch((err) => {
+      log.error({ err }, 'Failed to export meeting to markdown');
+    });
+
     // Emit end event
     log.info({ recordingId, hasOverview: summary.shortOverview.length > 0 }, 'Emitting call-ended event');
     this.emit('call-ended', {
@@ -657,6 +663,43 @@ export class MeetingCopilotService extends EventEmitter {
       })),
       transcript,
     });
+  }
+
+  /**
+   * Export meeting to markdown file in ~/.notter/
+   */
+  private async exportToMarkdown(
+    recordingId: number,
+    summary: PostMeetingSummary,
+    metrics: ConversationMetrics,
+    duration: number,
+    segments: TranscriptSegmentData[],
+    meetingContext: { meetingName?: string; meetingDescription?: string }
+  ): Promise<void> {
+    const recording = getRecordingById(recordingId);
+    if (!recording) {
+      log.warn({ recordingId }, 'Recording not found for markdown export');
+      return;
+    }
+
+    const transcript = segments.map((seg) => ({
+      speaker: seg.channel as 'me' | 'them',
+      text: seg.text,
+      startTime: seg.startTime,
+    }));
+
+    const filePath = await exportMeetingToMarkdown({
+      recordingId,
+      meetingName: meetingContext.meetingName || 'Untitled Meeting',
+      meetingDescription: meetingContext.meetingDescription,
+      startedAt: new Date(recording.createdAt),
+      duration: Math.round(duration),
+      summary,
+      metrics,
+      transcript,
+    });
+
+    log.info({ recordingId, filePath }, 'Meeting exported to markdown');
   }
 
   /**

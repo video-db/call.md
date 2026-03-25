@@ -70,12 +70,32 @@ export function setupPermissionHandlers(): void {
       screen: 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
       accessibility: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
       camera: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Camera',
+      notifications: 'x-apple.systempreferences:com.apple.preference.notifications',
     };
 
     const url = paneMap[pane];
     if (url) {
       await shell.openExternal(url);
     }
+  });
+
+  ipcMain.handle('check-notification-permission', async (): Promise<boolean> => {
+    if (process.platform !== 'darwin') return true;
+
+    // On macOS, check if notifications are enabled
+    // Notification.isSupported() checks if the system supports notifications
+    // We return true if supported, as macOS doesn't have a direct API to check permission
+    const { Notification } = await import('electron');
+    return Notification.isSupported();
+  });
+
+  ipcMain.handle('request-notification-permission', async (): Promise<boolean> => {
+    if (process.platform !== 'darwin') return true;
+
+    // On macOS, we can't programmatically request notification permission
+    // We need to open System Preferences
+    await shell.openExternal('x-apple.systempreferences:com.apple.preference.notifications');
+    return false;
   });
 
   ipcMain.handle('get-permission-status', async (): Promise<PermissionStatus> => {

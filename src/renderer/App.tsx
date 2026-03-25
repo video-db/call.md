@@ -95,9 +95,58 @@ function PermissionToggle({ enabled, onClick }: { enabled: boolean; onClick?: ()
 }
 
 
+// Notification icon for permissions
+function NotificationIcon({ color = "#969696" }: { color?: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M10 2.5C7.5 2.5 5.5 4.5 5.5 7v3.5l-1.25 1.25c-.417.417-.125 1.125.458 1.125h10.584c.583 0 .875-.708.458-1.125L14.5 10.5V7c0-2.5-2-4.5-4.5-4.5z"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.5 15.833a1.667 1.667 0 003.333 0"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function PermissionsView({ onContinue }: { onContinue: () => void }) {
   const { status, requestMicPermission, openSettings, checkPermissions } = usePermissions();
   const configStore = useConfigStore();
+  const [notificationsEnabled, setNotificationsEnabled] = React.useState(false);
+
+  // Check notification permission on mount
+  React.useEffect(() => {
+    const checkNotifications = async () => {
+      try {
+        const enabled = await window.electronAPI.permissions.checkNotificationPermission();
+        setNotificationsEnabled(enabled);
+      } catch {
+        // Ignore errors
+      }
+    };
+    checkNotifications();
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    await window.electronAPI.permissions.openSystemSettings('notifications');
+    // Re-check permission after a delay
+    setTimeout(async () => {
+      try {
+        const enabled = await window.electronAPI.permissions.checkNotificationPermission();
+        setNotificationsEnabled(enabled);
+      } catch {
+        // Ignore errors
+      }
+    }, 1000);
+  };
 
   const allGranted = status.microphone && status.screen;
 
@@ -245,12 +294,33 @@ function PermissionsView({ onContinue }: { onContinue: () => void }) {
             </div>
           </div>
 
-          {/* Notifications tip */}
-          <div className="flex items-start gap-[10px] px-[14px] py-[12px] bg-[#f8f8fa] rounded-[12px] border border-[#efefef]">
-            <p className="text-[13px] text-[#666666] leading-[18px]">
-              <span className="font-medium">Tip:</span> Enable notifications for Notter in{' '}
-              <span className="font-medium">System Settings → Notifications</span> to get alerts before your meetings start.
-            </p>
+          {/* App notifications permission */}
+          <div
+            className={`flex gap-[14px] items-center px-[17px] py-[15px] rounded-[16px] border ${
+              notificationsEnabled
+                ? 'bg-[#fff5ec] border-[#ffe9d3]'
+                : 'bg-white border-[#efefef]'
+            }`}
+          >
+            <div
+              className={`size-[36px] rounded-[10px] flex items-center justify-center border ${
+                notificationsEnabled
+                  ? 'bg-[rgba(236,91,22,0.1)] border-[rgba(236,91,22,0.3)]'
+                  : 'bg-white border-[#ededf3]'
+              }`}
+            >
+              <NotificationIcon color={notificationsEnabled ? '#EC5B16' : '#969696'} />
+            </div>
+            <div className="flex-1 flex flex-col gap-[3px]">
+              <p className="text-[16px] font-medium text-[#141420] leading-[20px]">App notifications</p>
+              <p className="text-[13px] font-normal text-[#969696] leading-[18px]">
+                Get alerts before your meetings start.
+              </p>
+            </div>
+            <PermissionToggle
+              enabled={notificationsEnabled}
+              onClick={handleToggleNotifications}
+            />
           </div>
 
           {/* Buttons */}

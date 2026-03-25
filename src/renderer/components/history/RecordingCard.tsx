@@ -93,7 +93,7 @@ export function RecordingCard({ recording, onClick }: RecordingCardProps) {
       className={cn(
         'bg-[#f7f7f7] border border-[#efefef] rounded-[16px] pt-[20px] pb-[24px] px-[20px] cursor-pointer',
         'transition-all duration-200',
-        'flex flex-col gap-[20px]',
+        'flex flex-col gap-[20px] h-full',
         config.hoverBg,
         config.hoverBorder
       )}

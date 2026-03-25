@@ -95,6 +95,28 @@ function ScreenIcon({ enabled }: { enabled: boolean }) {
   );
 }
 
+function NotificationIcon({ enabled }: { enabled: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M10 2.5C7.5 2.5 5.5 4.5 5.5 7v3.5l-1.25 1.25c-.417.417-.125 1.125.458 1.125h10.584c.583 0 .875-.708.458-1.125L14.5 10.5V7c0-2.5-2-4.5-4.5-4.5z"
+        stroke={enabled ? '#ec5b16' : '#464646'}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill={enabled ? 'rgba(236,91,22,0.2)' : 'none'}
+      />
+      <path
+        d="M8.5 15.833a1.667 1.667 0 003.333 0"
+        stroke={enabled ? '#ec5b16' : '#464646'}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function CalendarIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -309,8 +331,10 @@ function CalendarEventItem({
 // MCP Server Item Component
 function MCPServerItem({
   server,
+  onRemove,
 }: {
   server: MCPServerConfig;
+  onRemove: () => void;
 }) {
   return (
     <div className="bg-white border border-[#ededf3] rounded-[10px] px-[15px] py-[13px]">
@@ -324,6 +348,14 @@ function MCPServerItem({
             {server.description || 'Sync meeting notes & summaries'}
           </p>
         </div>
+        <button
+          onClick={onRemove}
+          className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#f7f7f7] rounded-[6px] transition-colors"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="#969696" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
     </div>
   );
@@ -339,22 +371,14 @@ function WorkflowItem({
 }) {
   return (
     <div className="bg-white border border-[#ededf3] rounded-[10px] px-[15px] py-[13px]">
-      <div className="flex items-center gap-[12px]">
-        <div className="w-[20px] h-[20px] flex items-center justify-center">
-          <WorkflowIcon />
-        </div>
-        <div className="flex-1 flex flex-col gap-[2px]">
-          <p className="text-[14px] font-medium text-black tracking-[0.07px]">{workflow.name}</p>
-          <p className="text-[12px] text-[#969696]">
-            {workflow.enabled ? 'Active' : 'Disabled'}
-          </p>
-        </div>
+      <div className="flex items-center gap-[6px]">
+        <p className="flex-1 text-[14px] font-medium text-black tracking-[0.07px]">{workflow.name}</p>
         <button
           onClick={onEdit}
-          className="w-[24px] h-[24px] flex items-center justify-center hover:bg-[#f7f7f7] rounded-[6px] transition-colors"
+          className="w-[20px] h-[20px] flex items-center justify-center hover:opacity-70 transition-opacity"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M10.5 1.75L12.25 3.5M1.75 12.25L2.333 9.833L10.083 2.083L11.917 3.917L4.167 11.667L1.75 12.25Z" stroke="#969696" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14.167 2.5L17.5 5.833M2.5 17.5L3.333 14.167L14.167 3.333L16.667 5.833L5.833 16.667L2.5 17.5Z" stroke="#969696" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </div>
@@ -381,6 +405,7 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingMeeting[]>([]);
   const [eventNotifications, setEventNotifications] = useState<Record<string, boolean>>({});
   const [workflows, setWorkflows] = useState<WorkflowData[]>([]);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   // Session state for stream toggles
   const sessionStore = useSessionStore();
@@ -473,6 +498,33 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
     loadWorkflows();
   }, []);
 
+  // Check notification permission
+  useEffect(() => {
+    const checkNotifications = async () => {
+      try {
+        const enabled = await window.electronAPI.permissions.checkNotificationPermission();
+        setNotificationsEnabled(enabled);
+      } catch {
+        // Ignore errors
+      }
+    };
+    checkNotifications();
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    // Open system settings for notifications
+    await window.electronAPI.permissions.openSystemSettings('notifications');
+    // Re-check permission after a delay (user may have changed it)
+    setTimeout(async () => {
+      try {
+        const enabled = await window.electronAPI.permissions.checkNotificationPermission();
+        setNotificationsEnabled(enabled);
+      } catch {
+        // Ignore errors
+      }
+    }, 1000);
+  };
+
   const handleConnectCalendar = async () => {
     try {
       const result = await window.electronAPI.calendar.signIn();
@@ -511,30 +563,29 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
   return (
     <div className="flex gap-[24px] h-full p-[24px] bg-white overflow-hidden">
       {/* Left Column */}
-      <div className="flex-1 flex flex-col gap-[60px] overflow-y-auto">
+      <div className="flex-1 flex flex-col gap-[40px] overflow-y-auto">
+        {/* Dashboard Header with Start Recording button */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-[22px] font-semibold text-black tracking-[0.11px]">
+            Dashboard
+          </h1>
+          <button
+            onClick={onStartRecording}
+            disabled={!streams.systemAudio && !streams.microphone}
+            className="flex items-center gap-[4px] bg-[#ff4000] hover:bg-[#e63900] disabled:opacity-50 disabled:cursor-not-allowed px-[20px] py-[12px] rounded-[12px] shadow-[0px_1.272px_15.267px_0px_rgba(0,0,0,0.05)] transition-colors"
+          >
+            <RecordingIcon />
+            <span className="text-[14px] font-semibold text-white tracking-[-0.28px]">
+              Start Recording
+            </span>
+          </button>
+        </div>
+
         {/* App Permissions Section */}
-        <div className="flex flex-col gap-[24px]">
-          {/* Header with Start Recording button */}
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-[4px]">
-              <h2 className="text-[18px] font-semibold text-[#141420] tracking-[-0.17px] leading-[25.5px]">
-                App permissions
-              </h2>
-              <p className="text-[13px] text-[#242424] leading-[18.75px]">
-                Grant access so the copilot can capture your meetings.
-              </p>
-            </div>
-            <button
-              onClick={onStartRecording}
-              disabled={!streams.systemAudio && !streams.microphone}
-              className="flex items-center gap-[4px] bg-[#ff4000] hover:bg-[#e63900] disabled:opacity-50 disabled:cursor-not-allowed px-[20px] py-[12px] rounded-[12px] shadow-[0px_1.272px_15.267px_0px_rgba(0,0,0,0.05)] transition-colors"
-            >
-              <RecordingIcon />
-              <span className="text-[14px] font-semibold text-white tracking-[-0.28px]">
-                Start Recording
-              </span>
-            </button>
-          </div>
+        <div className="bg-[#f7f7f7] border border-[#efefef] rounded-[12px] p-[16px] flex flex-col gap-[20px]">
+          <h2 className="text-[18px] font-semibold text-[#141420] tracking-[-0.17px] leading-[25.5px]">
+            App permissions
+          </h2>
 
           {/* Permission Toggles */}
           <div className="flex flex-col rounded-[12px] overflow-hidden">
@@ -561,27 +612,26 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
               description="Record your screen to capture visual context"
               enabled={streams.screen}
               onChange={(enabled) => setStreams({ screen: enabled })}
+            />
+            <div className="h-[1px] bg-[#ededf3]" />
+            <PermissionItem
+              icon={<NotificationIcon enabled={notificationsEnabled} />}
+              title="App notification"
+              description="Allow call.md to send notification and reminders"
+              enabled={notificationsEnabled}
+              onChange={handleToggleNotifications}
               isLast
             />
           </div>
         </div>
 
         {/* Recent Meetings Section */}
-        <div className="flex flex-col gap-[14px]">
+        <div className="flex flex-col gap-[20px] items-center">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between w-full">
             <h2 className="text-[18px] font-semibold text-[#141420] tracking-[-0.17px] leading-[25.5px]">
               Recent meetings
             </h2>
-            {recordings && recordings.length > 0 && (
-              <button
-                onClick={onNavigateToHistory}
-                className="flex items-center gap-[4px] text-[14px] font-semibold text-[#ec5b16] hover:opacity-80 transition-opacity"
-              >
-                View All Recordings
-                <ChevronRight className="w-[12px] h-[12px]" />
-              </button>
-            )}
           </div>
 
           {/* Content */}
@@ -600,16 +650,25 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
               </div>
             </div>
           ) : (
-            <div className="flex gap-[20px]">
-              {recentRecordings.map((recording) => (
-                <div key={recording.id} className="flex-1">
+            <>
+              <div className="grid grid-cols-2 gap-[20px] w-full">
+                {recentRecordings.map((recording) => (
                   <RecordingCard
+                    key={recording.id}
                     recording={recording}
                     onClick={() => setSelectedRecordingId(recording.id)}
                   />
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              <button
+                onClick={onNavigateToHistory}
+                className="flex items-center justify-center gap-[4px] bg-white border border-[rgba(150,150,150,0.3)] px-[20px] py-[12px] rounded-[12px] hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-[14px] font-semibold text-black tracking-[-0.28px]">
+                  View all
+                </span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -625,10 +684,13 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
             {calendarStatus === 'connected' && (
               <button
                 onClick={handleDisconnectCalendar}
-                className="flex items-center gap-[4px] text-[14px] font-medium text-[#ec5b16] hover:opacity-80"
+                className="flex items-center gap-[4px] text-[14px] font-semibold text-[#ec5b16] hover:opacity-80"
               >
-                <span className="text-[14px]">-</span>
-                Disconnect
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="8" cy="8" r="6" stroke="#ec5b16" strokeWidth="1.25" />
+                  <path d="M5.5 8h5" stroke="#ec5b16" strokeWidth="1.25" strokeLinecap="round" />
+                </svg>
+                Disconnect Calendar
               </button>
             )}
           </div>
@@ -723,7 +785,11 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
           ) : (
             <div className="flex flex-col gap-[12px]">
               {connectedServers.map((server) => (
-                <MCPServerItem key={server.id} server={server} />
+                <MCPServerItem
+                  key={server.id}
+                  server={server}
+                  onRemove={() => window.electronAPI.mcp.disconnect(server.id)}
+                />
               ))}
             </div>
           )}

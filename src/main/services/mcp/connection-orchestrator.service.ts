@@ -476,7 +476,7 @@ export class ConnectionOrchestratorService extends EventEmitter {
    */
   private createDefaultAuthProvider(serverId: string, serverName: string) {
     const authService = this.authService;
-    const redirectUri = 'notter://oauth/callback';
+    const redirectUri = 'call-md://oauth/callback';
 
     return {
       get redirectUrl() {
@@ -485,7 +485,7 @@ export class ConnectionOrchestratorService extends EventEmitter {
 
       get clientMetadata() {
         return {
-          client_name: 'Notter',
+          client_name: 'Call.md',
           redirect_uris: [redirectUri],
         };
       },

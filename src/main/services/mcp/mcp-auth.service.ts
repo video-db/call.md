@@ -147,7 +147,7 @@ export class MCPAuthService extends EventEmitter {
     const state = crypto.randomBytes(16).toString('hex');
 
     // Build authorization URL
-    const redirectUri = config.redirectUri || 'notter://oauth/callback';
+    const redirectUri = config.redirectUri || 'call-md://oauth/callback';
     const authUrl = new URL(config.authorizationUrl);
     authUrl.searchParams.set('client_id', config.clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
@@ -252,7 +252,7 @@ export class MCPAuthService extends EventEmitter {
     code: string,
     codeVerifier: string
   ): Promise<OAuthTokens> {
-    const redirectUri = config.redirectUri || 'notter://oauth/callback';
+    const redirectUri = config.redirectUri || 'call-md://oauth/callback';
 
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -380,14 +380,14 @@ export class MCPAuthService extends EventEmitter {
 
     return {
       get redirectUrl() {
-        return config.redirectUri || 'notter://oauth/callback';
+        return config.redirectUri || 'call-md://oauth/callback';
       },
 
       get clientMetadata() {
         return {
           client_id: config.clientId,
-          client_name: 'Notter',
-          redirect_uris: [config.redirectUri || 'notter://oauth/callback'],
+          client_name: 'Call.md',
+          redirect_uris: [config.redirectUri || 'call-md://oauth/callback'],
         };
       },
 

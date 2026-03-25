@@ -114,7 +114,7 @@ async function callWebhook(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Notter/1.0',
+        'User-Agent': 'Call.md/1.0',
         'X-Workflow-Call-Id': payload.callId,
       },
       body: JSON.stringify(payload),
@@ -194,7 +194,7 @@ export async function testWorkflowWebhook(
     meeting: {
       recordingId: 0,
       title: 'Test Meeting',
-      description: 'This is a test webhook call from Notter',
+      description: 'This is a test webhook call from Call.md',
       startedAt: new Date().toISOString(),
       endedAt: new Date().toISOString(),
       durationSeconds: 0,

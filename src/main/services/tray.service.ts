@@ -40,7 +40,7 @@ class TrayService {
     }
 
     this.tray = new Tray(icon);
-    this.tray.setToolTip('Notter');
+    this.tray.setToolTip('Call.md');
 
     // On macOS, clicking tray icon should show context menu (default behavior)
     // On Windows/Linux, double-click opens the app
@@ -61,7 +61,7 @@ class TrayService {
     });
 
     poller.on('auth-required', () => {
-      this.tray?.setToolTip('Notter - Reconnect needed');
+      this.tray?.setToolTip('Call.md - Reconnect needed');
     });
 
     log.info('Tray created');
@@ -120,7 +120,7 @@ class TrayService {
     menuItems.push({ type: 'separator' });
 
     menuItems.push({
-      label: 'Open Notter',
+      label: 'Open Call.md',
       click: () => {
         this.showMainWindow();
       },
@@ -144,12 +144,12 @@ class TrayService {
       const next = events[0];
       const mins = next.minutesUntil;
       if (mins <= 60) {
-        this.tray.setToolTip(`Notter - "${next.summary}" in ${mins}m`);
+        this.tray.setToolTip(`Call.md - "${next.summary}" in ${mins}m`);
       } else {
-        this.tray.setToolTip('Notter');
+        this.tray.setToolTip('Call.md');
       }
     } else {
-      this.tray.setToolTip('Notter');
+      this.tray.setToolTip('Call.md');
     }
   }
 

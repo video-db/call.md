@@ -50,7 +50,7 @@ export const useConfigStore = create<ConfigState>()(
       },
     }),
     {
-      name: 'notter-config',
+      name: 'call-md-config',
       partialize: (state) => ({
         accessToken: state.accessToken,
         userName: state.userName,

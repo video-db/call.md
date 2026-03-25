@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-# Notter Installer
-# Usage: curl -fsSL https://artifacts.videodb.io/notter/install | bash
+# Call.md Installer
+# Usage: curl -fsSL https://artifacts.videodb.io/call-md/install | bash
 
-APP_NAME="Notter"
+APP_NAME="Call.md"
 APP_DIR="/Applications/${APP_NAME}.app"
-BASE_URL="https://artifacts.videodb.io/notter"
+BASE_URL="https://artifacts.videodb.io/call-md"
 VERSION="1.0.0"
 
 # Colors
@@ -36,15 +36,15 @@ fi
 
 ARCH="$(uname -m)"
 case "$ARCH" in
-  arm64) DMG_FILE="notter-${VERSION}-arm64.dmg" ;;
-  x86_64) DMG_FILE="notter-${VERSION}-x64.dmg" ;;
+  arm64) DMG_FILE="call-md-${VERSION}-arm64.dmg" ;;
+  x86_64) DMG_FILE="call-md-${VERSION}-x64.dmg" ;;
   *) error "Unsupported architecture: $ARCH" ;;
 esac
 
 DMG_URL="${BASE_URL}/${DMG_FILE}"
 
 echo ""
-printf "${BOLD}  Notter Installer${NC}\n"
+printf "${BOLD}  Call.md Installer${NC}\n"
 echo "  ────────────────"
 echo ""
 info "Detected architecture: $ARCH"
@@ -119,10 +119,10 @@ MOUNT_POINT=""
 # --- Done ---
 
 echo ""
-success "Notter has been installed to /Applications!"
+success "Call.md has been installed to /Applications!"
 echo ""
 echo "  Next steps:"
-echo "    1. Open Notter from Applications or Spotlight"
+echo "    1. Open Call.md from Applications or Spotlight"
 echo "    2. Grant Microphone and Screen Recording permissions when prompted"
 echo "    3. Enter your VideoDB API key (get one at https://console.videodb.io)"
 echo ""

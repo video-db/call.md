@@ -16,8 +16,8 @@ function getTargetArchName(arch) {
  * @type {import('electron-builder').Configuration}
  */
 const config = {
-  appId: 'com.videodb.notter',
-  productName: 'Notter',
+  appId: 'com.videodb.call-md',
+  productName: 'Call.md',
   directories: {
     output: 'release',
     buildResources: 'resources',
@@ -65,14 +65,14 @@ const config = {
     entitlements: 'build/entitlements.mac.plist',
     entitlementsInherit: 'build/entitlements.mac.plist',
     extendInfo: {
-      NSMicrophoneUsageDescription: 'Notter needs microphone access to record audio.',
-      NSCameraUsageDescription: 'Notter needs camera access to record video.',
+      NSMicrophoneUsageDescription: 'Call.md needs microphone access to record audio.',
+      NSCameraUsageDescription: 'Call.md needs camera access to record video.',
       NSScreenCaptureUsageDescription:
-        'Notter needs screen capture access to record your screen.',
+        'Call.md needs screen capture access to record your screen.',
     },
   },
   dmg: {
-    title: 'Notter ${version}${arch}',
+    title: 'Call.md ${version}${arch}',
     icon: 'resources/icon.icns',
     window: {
       width: 540,

@@ -41,7 +41,7 @@ export function applyVideoDBPatches(): void {
     const srcDir = path.join(binBase, 'VideoDBCapture.app', 'Contents', 'MacOS');
 
     // Destination: writable userData directory
-    // e.g., ~/Library/Application Support/notter/bin
+    // e.g., ~/Library/Application Support/call-md/bin
     const destDir = path.join(app.getPath('userData'), 'bin');
 
     logger.info({ srcDir, destDir }, 'Setting up writable binaries');

@@ -500,7 +500,7 @@ export function CalendarPanel() {
                 <span className="text-[12px] font-semibold text-[#ec5b16]">4</span>
               </div>
               <p className="text-[13px] text-[#464646] leading-[18px]">
-                <span className="font-medium text-[#141420]">Enable Notifications:</span> Make sure Notter notifications are enabled in <span className="font-medium">System Settings → Notifications → Notter</span>.
+                <span className="font-medium text-[#141420]">Enable Notifications:</span> Make sure Call.md notifications are enabled in <span className="font-medium">System Settings → Notifications → Call.md</span>.
               </p>
             </div>
           </div>

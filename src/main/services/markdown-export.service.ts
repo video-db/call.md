@@ -2,10 +2,10 @@
  * Markdown Export Service
  *
  * Exports meeting transcripts and summaries to markdown files in a globally
- * accessible folder structure (~/.notter/) for AI agents and other tools.
+ * accessible folder structure (~/.call-md/) for AI agents and other tools.
  *
  * Directory structure:
- *   ~/.notter/
+ *   ~/.call-md/
  *     ├── index.md (list of all meetings)
  *     └── meetings/
  *         └── 2024/
@@ -23,9 +23,9 @@ import type { ConversationMetrics } from './copilot/conversation-metrics.service
 
 const logger = createChildLogger('markdown-export');
 
-const NOTTER_DIR = path.join(os.homedir(), '.notter');
-const MEETINGS_DIR = path.join(NOTTER_DIR, 'meetings');
-const INDEX_FILE = path.join(NOTTER_DIR, 'index.md');
+const CALL_MD_DIR = path.join(os.homedir(), '.call-md');
+const MEETINGS_DIR = path.join(CALL_MD_DIR, 'meetings');
+const INDEX_FILE = path.join(CALL_MD_DIR, 'index.md');
 
 export interface MeetingExportData {
   recordingId: number;
@@ -43,7 +43,7 @@ export interface MeetingExportData {
 }
 
 /**
- * Ensure the .notter directory structure exists
+ * Ensure the .call-md directory structure exists
  */
 function ensureDirectoryExists(dirPath: string): void {
   if (!fs.existsSync(dirPath)) {
@@ -161,7 +161,7 @@ function generateMeetingMarkdown(data: MeetingExportData): string {
   }
 
   lines.push('---');
-  lines.push(`*Exported by Notter on ${new Date().toISOString()}*`);
+  lines.push(`*Exported by Call.md on ${new Date().toISOString()}*`);
 
   return lines.join('\n');
 }
@@ -252,7 +252,7 @@ function updateIndex(data: MeetingExportData, relativePath: string): void {
   entries.sort((a, b) => b.date.localeCompare(a.date));
 
   const lines: string[] = [];
-  lines.push('# Notter Meeting Index');
+  lines.push('# Call.md Meeting Index');
   lines.push('');
   lines.push('A chronological index of all recorded meetings.');
   lines.push('');
@@ -276,7 +276,7 @@ function updateIndex(data: MeetingExportData, relativePath: string): void {
  */
 export async function exportMeetingToMarkdown(data: MeetingExportData): Promise<string> {
   // Ensure directory structure exists
-  initializeNotterDir();
+  initializeCallMdDir();
 
   try {
     const filePath = getMeetingFilePath(data.meetingName, data.startedAt);
@@ -289,7 +289,7 @@ export async function exportMeetingToMarkdown(data: MeetingExportData): Promise<
     fs.writeFileSync(filePath, markdown, 'utf-8');
     logger.info({ filePath, meetingName: data.meetingName }, 'Meeting exported to markdown');
 
-    const relativePath = path.relative(NOTTER_DIR, filePath);
+    const relativePath = path.relative(CALL_MD_DIR, filePath);
     updateIndex(data, relativePath);
 
     return filePath;
@@ -301,23 +301,23 @@ export async function exportMeetingToMarkdown(data: MeetingExportData): Promise<
 }
 
 /**
- * Get the .notter directory path
+ * Get the .call-md directory path
  */
-export function getNotterDir(): string {
-  return NOTTER_DIR;
+export function getCallMdDir(): string {
+  return CALL_MD_DIR;
 }
 
 /**
- * Initialize the .notter directory structure
+ * Initialize the .call-md directory structure
  */
-export function initializeNotterDir(): void {
-  ensureDirectoryExists(NOTTER_DIR);
+export function initializeCallMdDir(): void {
+  ensureDirectoryExists(CALL_MD_DIR);
   ensureDirectoryExists(MEETINGS_DIR);
 
   // Create index file if it doesn't exist
   if (!fs.existsSync(INDEX_FILE)) {
     const initialContent = [
-      '# Notter Meeting Index',
+      '# Call.md Meeting Index',
       '',
       'A chronological index of all recorded meetings.',
       '',
@@ -329,6 +329,6 @@ export function initializeNotterDir(): void {
     ].join('\n');
 
     fs.writeFileSync(INDEX_FILE, initialContent, 'utf-8');
-    logger.info({ path: NOTTER_DIR }, 'Initialized .notter directory');
+    logger.info({ path: CALL_MD_DIR }, 'Initialized .call-md directory');
   }
 }

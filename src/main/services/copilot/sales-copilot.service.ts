@@ -60,7 +60,7 @@ import {
 import { createMCPToolCall, updateMCPToolCall } from '../../db';
 import type { MCPDisplayResult, MCPIntentDetection } from '../../../shared/types/mcp.types';
 
-const log = logger.child({ module: 'notter' });
+const log = logger.child({ module: 'call-md' });
 
 // Types
 
@@ -615,7 +615,7 @@ export class MeetingCopilotService extends EventEmitter {
   }
 
   /**
-   * Export meeting to markdown file in ~/.notter/
+   * Export meeting to markdown file in ~/.call-md/
    */
   private async exportToMarkdown(
     recordingId: number,

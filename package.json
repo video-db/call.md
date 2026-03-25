@@ -1,8 +1,8 @@
 {
-  "name": "notter",
+  "name": "call-md",
   "version": "1.0.0",
   "type": "commonjs",
-  "description": "Notter - Record meetings with real-time transcription and AI-powered insights",
+  "description": "Call.md - Record meetings with real-time transcription and AI-powered insights",
   "author": {
     "name": "VideoDB",
     "email": "support@videodb.io",

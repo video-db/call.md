@@ -15,7 +15,7 @@ interface TitleBarProps {
   className?: string;
 }
 
-export function TitleBar({ title = 'Notter', className }: TitleBarProps) {
+export function TitleBar({ title = 'Call.md', className }: TitleBarProps) {
   return (
     <div
       className={cn(

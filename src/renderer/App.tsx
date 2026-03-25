@@ -568,7 +568,7 @@ function SettingsView({ initialTab, onClearInitialTab }: SettingsViewProps) {
                 </div>
                 <div className="px-[20px] py-[16px] space-y-[8px]">
                   <p className="text-[14px] text-[#464646] leading-[20px]">
-                    Notter is a desktop app for recording meetings with real-time
+                    Call.md is a desktop app for recording meetings with real-time
                     transcription and AI-powered insights.
                   </p>
                   <p className="text-[13px] text-[#969696]">

@@ -144,7 +144,7 @@ export function CalendarSetupView({ onConnected, onSkip }: CalendarSetupViewProp
               Connect your calendar
             </h1>
             <p className="text-[14px] font-normal text-[#464646] text-center leading-[22.4px]">
-              Notter uses your Google Calendar to detect upcoming meetings and ask if you'd like to record them.
+              Call.md uses your Google Calendar to detect upcoming meetings and ask if you'd like to record them.
             </p>
           </div>
         </div>
@@ -164,7 +164,7 @@ export function CalendarSetupView({ onConnected, onSkip }: CalendarSetupViewProp
         {/* Notifications tip */}
         <div className="w-full flex items-start gap-[10px] px-[14px] py-[12px] bg-[#f8f8fa] rounded-[12px] border border-[#efefef] mb-[32px]">
           <p className="text-[13px] text-[#666666] leading-[18px]">
-            <span className="font-medium">Tip:</span> Make sure notifications are enabled for Notter in{' '}
+            <span className="font-medium">Tip:</span> Make sure notifications are enabled for Call.md in{' '}
             <span className="font-medium">System Settings → Notifications</span> to receive meeting reminders.
           </p>
         </div>

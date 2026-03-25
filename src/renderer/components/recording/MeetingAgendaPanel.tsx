@@ -3,7 +3,7 @@
  *
  * Shows meeting checklist items during recording:
  * - Collapsible header with chevron
- * - Checkbox items with orange accent
+ * - Checkbox items with gray styling
  */
 
 import React, { useState } from 'react';
@@ -47,14 +47,14 @@ interface ChecklistItemProps {
 function ChecklistItem({ text, checked, onToggle }: ChecklistItemProps) {
   return (
     <div
-      className="bg-[#fff5ec] border border-[rgba(236,91,22,0.2)] rounded-[10px] px-[13px] py-[9px] flex items-center gap-[12px] cursor-pointer hover:bg-[#ffeddb] transition-colors w-full"
+      className="bg-[#efefef] border border-[rgba(0,0,0,0.1)] rounded-[10px] px-[12px] py-[8px] flex items-center gap-[12px] cursor-pointer hover:bg-[#e5e5e5] transition-colors w-full"
       onClick={onToggle}
     >
       {/* Checkbox */}
       <div
         className={`w-[16px] h-[16px] rounded-[4px] flex items-center justify-center shrink-0 transition-colors ${
           checked
-            ? 'bg-[#ec5b16] border border-[#ec5b16]'
+            ? 'bg-[#242424] border border-[#242424]'
             : 'bg-white border border-[#efefef]'
         }`}
       >
@@ -63,7 +63,7 @@ function ChecklistItem({ text, checked, onToggle }: ChecklistItemProps) {
 
       {/* Text */}
       <p
-        className={`flex-1 text-[14px] leading-[24px] tracking-[0.07px] ${
+        className={`flex-1 text-[14px] leading-[22px] ${
           checked ? 'line-through text-[#969696]' : 'text-black'
         }`}
       >
@@ -112,15 +112,15 @@ export function MeetingAgendaPanel({
   }
 
   return (
-    <div className="bg-white border border-[#efefef] rounded-[16px] p-[16px] flex flex-col gap-[20px]">
+    <div className="bg-white border border-[#efefef] rounded-[16px] p-[16px] flex flex-col gap-[20px] max-h-[50%] shrink-0">
       {/* Header */}
       <div
-        className="flex items-center gap-[6px] cursor-pointer"
+        className="flex items-center gap-[6px] cursor-pointer shrink-0"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex-1 flex items-center gap-[4px]">
+        <div className="flex-1 flex items-center gap-[8px]">
           <ClipboardCheckIcon />
-          <span className="font-medium text-[16px] text-black">Meeting Agenda</span>
+          <span className="font-medium text-[15px] text-black">Meeting Agenda</span>
         </div>
         {isExpanded ? (
           <ChevronUp className="w-[24px] h-[24px] text-[#464646]" />
@@ -131,7 +131,7 @@ export function MeetingAgendaPanel({
 
       {/* Content */}
       {isExpanded && (
-        <div className="flex flex-col gap-[10px]">
+        <div className="flex flex-col gap-[10px] overflow-y-auto min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {checklist.map((item, idx) => (
             <ChecklistItem
               key={idx}

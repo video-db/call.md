@@ -176,7 +176,7 @@ export interface LiveAssistApi {
 }
 
 export interface LiveAssistEvents {
-  onUpdate: (callback: (data: { assists: any[]; processedAt: number }) => void) => () => void;
+  onUpdate: (callback: (data: { insights: { say_this: string[]; ask_this: string[] }; processedAt: number }) => void) => () => void;
 }
 
 export interface WorkflowsApi {

@@ -93,6 +93,7 @@ export const RecordingSchema = z.object({
   meetingChecklist: z.array(z.string()).nullable().optional(),
   // Post-meeting analysis
   postMeetingChecklist: z.array(z.string()).nullable().optional(),
+  postMeetingChecklistCompleted: z.array(z.number()).nullable().optional(),
 });
 
 export const CreateRecordingInputSchema = z.object({

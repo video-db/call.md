@@ -2,58 +2,53 @@
  * Live Assist Service
  *
  * Runs every 20 seconds during recording, analyzes recent transcript,
- * and generates contextual assists (questions, suggestions, actions)
+ * and generates contextual assists (things to say, questions to ask)
  * using an LLM.
  */
 
 import { EventEmitter } from 'events';
-import { v4 as uuid } from 'uuid';
 import { logger } from '../lib/logger';
 import { getLLMService } from './llm.service';
-import type { LiveAssistItem, LiveAssistResponse } from '../../shared/types/live-assist.types';
+import type { LiveInsights } from '../../shared/types/live-assist.types';
 
 const log = logger.child({ module: 'live-assist' });
 
 const LIVE_ASSIST_INTERVAL_MS = 20000; // 20 seconds
 
-const SYSTEM_PROMPT = `You are a live meeting coach. You receive a rolling 20-second transcript from an ongoing meeting. Your job is to ALWAYS surface helpful nudges — questions to ask, things to say, actions to take.
+const SYSTEM_PROMPT = `You are a live meeting coach. You receive a rolling 20-second transcript from an ongoing meeting. Your job is to surface helpful nudges for the User.
 
-IMPORTANT: You MUST always return at least 1-2 assists for every transcript chunk. Never return an empty array. Find something helpful to suggest.
+IMPORTANT: All assistance must be directed to the "User" (labeled as [User] in the transcript). Only help the User — do NOT provide assistance for what the other meeting participants (labeled as [Them]) might need. Focus exclusively on what the User can say or ask.
 
 ---
 
 ## WHAT TO SURFACE
 
-- A clarifying question worth asking
+**say_this** - Things the User could say:
 - A way to respond to something said
-- A vague claim worth pinning down
+- An opportunity to summarize or steer the conversation
 - A topic worth parking for later
 - A decision that should be captured
-- An opportunity to summarize or steer
-- A commitment someone made
-- Anything where a nudge would help
+- A commitment someone made that the User should acknowledge
 
-Even simple observations are valuable. Always find something.
+**ask_this** - Questions the User could ask:
+- A clarifying question worth asking
+- A vague claim worth pinning down
+- Follow-up questions to dig deeper
+
+Only surface assists when the User would genuinely benefit. If the conversation is going smoothly and the User doesn't need help, return empty arrays.
 
 ---
 
 ## OUTPUT FORMAT
 
-Return a JSON object with an "assists" array. Each item has:
-- "type": one of "ask", "speak", "act"
-- "urgency": one of "now", "soon", "later"
-- "text": the suggestion — short, ready to use
-- "reason": one short sentence explaining what you detected
+Return a JSON object with two arrays of strings:
 
-Example:
 {
-  "assists": [
-    {
-      "type": "ask",
-      "urgency": "now",
-      "text": "What specific metrics are behind that 15% number?",
-      "reason": "Speaker claimed 15% improvement without citing data."
-    }
+  "say_this": [
+    "That's a great point about the timeline - should we lock in Q3 as our target?"
+  ],
+  "ask_this": [
+    "What specific metrics are behind that 15% number?"
   ]
 }
 
@@ -61,9 +56,10 @@ Example:
 
 ## RULES
 
-- ALWAYS return 1-3 assists. Never return an empty array.
-- Every assist must connect to something in the transcript.
-- Write questions as ready-to-use first-person lines.
+- Return 0-3 items per array. Quality over quantity.
+- If the User genuinely doesn't need assistance, return empty arrays.
+- Every suggestion must connect to something in the transcript.
+- Write as ready-to-use first-person lines.
 - Only output the JSON, nothing else.`;
 
 interface TranscriptChunk {
@@ -76,7 +72,8 @@ class LiveAssistService extends EventEmitter {
   private intervalTimer: NodeJS.Timeout | null = null;
   private isRunning = false;
   private transcriptBuffer: TranscriptChunk[] = [];
-  private previousAssistTexts: Set<string> = new Set();
+  private previousSayThis: Set<string> = new Set();
+  private previousAskThis: Set<string> = new Set();
   private lastProcessedTimestamp = 0;
 
   /**
@@ -91,7 +88,8 @@ class LiveAssistService extends EventEmitter {
     log.info('Starting live assist service');
     this.isRunning = true;
     this.transcriptBuffer = [];
-    this.previousAssistTexts.clear();
+    this.previousSayThis.clear();
+    this.previousAskThis.clear();
     this.lastProcessedTimestamp = Date.now();
 
     // Run immediately, then every 20 seconds
@@ -116,7 +114,8 @@ class LiveAssistService extends EventEmitter {
     }
 
     this.transcriptBuffer = [];
-    this.previousAssistTexts.clear();
+    this.previousSayThis.clear();
+    this.previousAskThis.clear();
   }
 
   /**
@@ -154,7 +153,7 @@ class LiveAssistService extends EventEmitter {
     // Build transcript text with speaker labels
     const transcriptText = recentChunks
       .map(chunk => {
-        const speaker = chunk.source === 'mic' ? 'You' : 'Them';
+        const speaker = chunk.source === 'mic' ? 'User' : 'Them';
         return `[${speaker}]: ${chunk.text}`;
       })
       .join('\n');
@@ -163,7 +162,7 @@ class LiveAssistService extends EventEmitter {
 
     try {
       const llm = getLLMService();
-      const response = await llm.chatCompletionJSON<LiveAssistResponse>([
+      const response = await llm.chatCompletionJSON<LiveInsights>([
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: `Analyze this transcript chunk:\n\n${transcriptText}` },
       ]);
@@ -173,42 +172,38 @@ class LiveAssistService extends EventEmitter {
         return;
       }
 
-      const { assists } = response.data;
-      log.debug({ response }, 'Response from live assist');
-      log.debug({ assists }, 'Assists generated for this chunk');
-
-      if (!assists || assists.length === 0) {
-        log.debug('No assists generated for this chunk');
-        return;
-      }
+      const { say_this, ask_this } = response.data;
+      log.debug({ say_this, ask_this }, 'Insights generated for this chunk');
 
       // Filter out duplicates from previous rounds
-      const newAssists: LiveAssistItem[] = assists
-        .filter(assist => !this.previousAssistTexts.has(assist.text.toLowerCase()))
-        .slice(0, 3) // Max 3 per round
-        .map(assist => ({
-          id: uuid(),
-          type: assist.type,
-          urgency: assist.urgency,
-          text: assist.text,
-          reason: assist.reason,
-          timestamp: Date.now(),
-        }));
+      const newSayThis = (say_this || [])
+        .filter(item => !this.previousSayThis.has(item.toLowerCase()))
+        .slice(0, 3);
 
-      // Track these assists to avoid repetition
-      newAssists.forEach(assist => {
-        this.previousAssistTexts.add(assist.text.toLowerCase());
-      });
+      const newAskThis = (ask_this || [])
+        .filter(item => !this.previousAskThis.has(item.toLowerCase()))
+        .slice(0, 3);
 
-      // Keep previous assists set manageable (last 20)
-      if (this.previousAssistTexts.size > 20) {
-        const arr = Array.from(this.previousAssistTexts);
-        this.previousAssistTexts = new Set(arr.slice(-20));
+      // Track these to avoid repetition
+      newSayThis.forEach(item => this.previousSayThis.add(item.toLowerCase()));
+      newAskThis.forEach(item => this.previousAskThis.add(item.toLowerCase()));
+
+      // Keep previous sets manageable (last 20 each)
+      if (this.previousSayThis.size > 20) {
+        const arr = Array.from(this.previousSayThis);
+        this.previousSayThis = new Set(arr.slice(-20));
+      }
+      if (this.previousAskThis.size > 20) {
+        const arr = Array.from(this.previousAskThis);
+        this.previousAskThis = new Set(arr.slice(-20));
       }
 
-      if (newAssists.length > 0) {
-        log.info({ count: newAssists.length }, 'Generated new live assists');
-        this.emit('assists', { assists: newAssists, processedAt: Date.now() });
+      if (newSayThis.length > 0 || newAskThis.length > 0) {
+        log.info({ sayCount: newSayThis.length, askCount: newAskThis.length }, 'Generated new live insights');
+        this.emit('insights', {
+          insights: { say_this: newSayThis, ask_this: newAskThis },
+          processedAt: Date.now(),
+        });
       }
     } catch (error) {
       log.error({ error }, 'Error processing transcript for live assist');
@@ -220,7 +215,8 @@ class LiveAssistService extends EventEmitter {
    */
   clear(): void {
     this.transcriptBuffer = [];
-    this.previousAssistTexts.clear();
+    this.previousSayThis.clear();
+    this.previousAskThis.clear();
   }
 }
 

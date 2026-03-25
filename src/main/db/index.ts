@@ -285,6 +285,7 @@ function ensureRecordingColumns(): void {
   addColumnIfMissing('meeting_checklist', "ALTER TABLE recordings ADD COLUMN meeting_checklist TEXT");
   addColumnIfMissing('collection_id', "ALTER TABLE recordings ADD COLUMN collection_id TEXT");
   addColumnIfMissing('post_meeting_checklist', "ALTER TABLE recordings ADD COLUMN post_meeting_checklist TEXT");
+  addColumnIfMissing('post_meeting_checklist_completed', "ALTER TABLE recordings ADD COLUMN post_meeting_checklist_completed TEXT");
 }
 
 function ensureNudgesHistorySchema(): void {

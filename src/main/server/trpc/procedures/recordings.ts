@@ -59,6 +59,10 @@ function toApiRecording(dbRecording: ReturnType<typeof getRecordingById>) {
     (dbRecording as any).postMeetingChecklist,
     z.array(z.string())
   );
+  const postMeetingChecklistCompleted = safeJsonParse(
+    (dbRecording as any).postMeetingChecklistCompleted,
+    z.array(z.number())
+  );
 
   return {
     id: dbRecording.id,
@@ -84,6 +88,7 @@ function toApiRecording(dbRecording: ReturnType<typeof getRecordingById>) {
     meetingChecklist: meetingChecklist || null,
     // Post-meeting analysis
     postMeetingChecklist: postMeetingChecklist || null,
+    postMeetingChecklistCompleted: postMeetingChecklistCompleted || null,
   };
 }
 
@@ -349,5 +354,27 @@ export const recordingsRouter = router({
         logger.error({ error, recordingId: input.recordingId }, 'Failed to fetch collectionId');
         return { collectionId: null };
       }
+    }),
+
+  // Update post-meeting checklist completion status
+  updateChecklistCompletion: protectedProcedure
+    .input(z.object({
+      recordingId: z.number(),
+      completedIndices: z.array(z.number()),
+    }))
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input }) => {
+      logger.debug({ recordingId: input.recordingId, completedIndices: input.completedIndices }, 'Updating checklist completion');
+
+      const recording = getRecordingById(input.recordingId);
+      if (!recording) {
+        throw new Error('Recording not found');
+      }
+
+      updateRecordingBySessionId(recording.sessionId, {
+        postMeetingChecklistCompleted: JSON.stringify(input.completedIndices),
+      });
+
+      return { success: true };
     }),
 });

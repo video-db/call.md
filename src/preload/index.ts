@@ -330,7 +330,7 @@ const api: IpcApi = {
   },
 
   liveAssistOn: {
-    onUpdate: (callback: (data: { assists: any[]; processedAt: number }) => void) => {
+    onUpdate: (callback: (data: { insights: { say_this: string[]; ask_this: string[] }; processedAt: number }) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: any) => callback(data);
       ipcRenderer.on('live-assist:update', listener);
       return () => ipcRenderer.removeListener('live-assist:update', listener);

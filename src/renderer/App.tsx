@@ -286,12 +286,21 @@ function RecordingView({ onBack }: RecordingViewProps) {
   const isProcessing = status === 'processing' || status === 'stopping';
   const isIdle = status === 'idle';
 
-  // Handle navigation when session becomes idle (via useEffect, not during render)
+  console.log('[RecordingView] status:', status, 'isIdle:', isIdle, 'callSummary:', !!callSummary);
+
+  // Handle navigation when session becomes idle and call summary is ready
+  // Only trigger if we were previously recording (not on initial mount edge case)
+  const wasRecordingRef = React.useRef(false);
   React.useEffect(() => {
-    if (isIdle && !callSummary) {
+    if (isRecording) {
+      wasRecordingRef.current = true;
+    }
+    // Navigate to detail page when call summary is ready (after recording ended)
+    if (callSummary && wasRecordingRef.current) {
+      console.log('[RecordingView] Call summary ready, navigating to recording detail page');
       onBack?.();
     }
-  }, [isIdle, callSummary, onBack]);
+  }, [callSummary, isRecording, onBack]);
 
   // Get checklist from meeting setup
   const { checklist } = meetingSetupStore;
@@ -387,23 +396,23 @@ function RecordingView({ onBack }: RecordingViewProps) {
 
       {/* Main Container */}
       <div className="flex-1 bg-white border border-[#efefef] rounded-t-[20px] mx-[10px] p-[20px] flex gap-[30px] overflow-hidden">
-        {/* Left Column - Transcript Section */}
+        {/* Left Column - Live Assist Panel */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <TranscriptionPanel />
+          <LiveAssistPanel />
         </div>
 
-        {/* Right Column - Metrics, Agenda, Live Assist */}
-        <div className="w-[460px] shrink-0 flex flex-col gap-[30px] h-full">
+        {/* Right Column - Metrics, Agenda, Transcript */}
+        <div className="w-[460px] shrink-0 flex flex-col gap-[13px] h-full">
           {/* Metrics Bar */}
           <MetricsBar />
 
           {/* Right Panel with scrollable content */}
-          <div className="flex-1 bg-[#f7f7f7] border border-[#efefef] rounded-[16px] p-[12px] flex flex-col gap-[16px] overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex-1 bg-[#f7f7f7] border border-[#efefef] rounded-[16px] p-[12px] flex flex-col gap-[16px] overflow-hidden min-h-0">
             {/* Meeting Agenda - only show if checklist exists */}
             {hasChecklist && <MeetingAgendaPanel checklist={checklist} />}
 
-            {/* Live Assist Panel */}
-            <LiveAssistPanel />
+            {/* Meeting Transcript */}
+            <TranscriptionPanel />
           </div>
         </div>
       </div>
@@ -649,6 +658,10 @@ export function App() {
   // Check if actively recording or processing
   const isActivelyRecording = sessionStatus === 'recording' || sessionStatus === 'processing' || sessionStatus === 'stopping' || sessionStatus === 'starting';
 
+  // Track if we're waiting for call summary after recording ended
+  const copilotCallActive = useCopilotStore((state) => state.isCallActive);
+  const awaitingCallSummary = sessionStatus === 'idle' && copilotCallActive;
+
   React.useEffect(() => {
     if (isActivelyRecording && showMeetingSetup) {
       setShowMeetingSetup(false);
@@ -678,6 +691,8 @@ export function App() {
   };
 
   const renderContent = () => {
+    console.log('[App.renderContent] sessionStatus:', sessionStatus, 'isActivelyRecording:', isActivelyRecording, 'awaitingCallSummary:', awaitingCallSummary, 'activeTab:', activeTab);
+
     // Step 0: Auth
     if (!isAuthenticated) {
       return <AuthView />;
@@ -730,8 +745,8 @@ export function App() {
       );
     }
 
-    // If actively recording, show RecordingView
-    if (isActivelyRecording && activeTab === 'home') {
+    // If actively recording OR waiting for call summary, show RecordingView
+    if ((isActivelyRecording || awaitingCallSummary) && activeTab === 'home') {
       return <RecordingView onBack={handleExitRecordingMode} />;
     }
 

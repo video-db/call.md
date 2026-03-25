@@ -1,51 +1,53 @@
 /**
  * Live Assist Store
  *
- * Manages the state for real-time meeting assists generated
+ * Manages the state for real-time meeting insights generated
  * from transcript analysis every 20 seconds.
  */
 
 import { create } from 'zustand';
-import type { LiveAssistItem } from '../../shared/types/live-assist.types';
+import type { LiveInsights } from '../../shared/types/live-assist.types';
 
 interface LiveAssistState {
-  assists: LiveAssistItem[];
+  sayThis: string[];
+  askThis: string[];
   isProcessing: boolean;
   lastProcessedAt: number | null;
   error: string | null;
 
   // Actions
-  setAssists: (assists: LiveAssistItem[]) => void;
-  addAssists: (assists: LiveAssistItem[]) => void;
+  addInsights: (insights: LiveInsights) => void;
   setProcessing: (isProcessing: boolean) => void;
   setError: (error: string | null) => void;
   clear: () => void;
 }
 
 export const useLiveAssistStore = create<LiveAssistState>((set) => ({
-  assists: [],
+  sayThis: [],
+  askThis: [],
   isProcessing: false,
   lastProcessedAt: null,
   error: null,
 
-  setAssists: (assists) => set({
-    assists,
-    lastProcessedAt: Date.now(),
-    error: null,
-  }),
+  addInsights: (insights) => set((state) => {
+    // Deduplicate by checking existing items (case-insensitive)
+    const existingSayThis = new Set(state.sayThis.map(s => s.toLowerCase()));
+    const existingAskThis = new Set(state.askThis.map(s => s.toLowerCase()));
 
-  addAssists: (newAssists) => set((state) => {
-    // Deduplicate by text to avoid repeating the same assist
-    const existingTexts = new Set(state.assists.map(a => a.text.toLowerCase()));
-    const uniqueNewAssists = newAssists.filter(
-      a => !existingTexts.has(a.text.toLowerCase())
+    const newSayThis = insights.say_this.filter(
+      item => !existingSayThis.has(item.toLowerCase())
+    );
+    const newAskThis = insights.ask_this.filter(
+      item => !existingAskThis.has(item.toLowerCase())
     );
 
-    // Keep last 10 assists max
-    const combined = [...state.assists, ...uniqueNewAssists].slice(-10);
+    // Append new items to the end (max 15 per category)
+    const combinedSayThis = [...state.sayThis, ...newSayThis].slice(-15);
+    const combinedAskThis = [...state.askThis, ...newAskThis].slice(-15);
 
     return {
-      assists: combined,
+      sayThis: combinedSayThis,
+      askThis: combinedAskThis,
       lastProcessedAt: Date.now(),
       error: null,
     };
@@ -56,7 +58,8 @@ export const useLiveAssistStore = create<LiveAssistState>((set) => ({
   setError: (error) => set({ error, isProcessing: false }),
 
   clear: () => set({
-    assists: [],
+    sayThis: [],
+    askThis: [],
     isProcessing: false,
     lastProcessedAt: null,
     error: null,

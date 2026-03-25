@@ -2,14 +2,13 @@
  * useLiveAssist Hook
  *
  * Manages the live assist feature lifecycle and subscribes to
- * assist updates from the main process.
+ * insight updates from the main process.
  */
 
 import { useEffect, useRef } from 'react';
 import { useLiveAssistStore } from '../stores/live-assist.store';
 import { useSessionStore } from '../stores/session.store';
 import { getElectronAPI } from '../api/ipc';
-import type { LiveAssistItem } from '../../shared/types/live-assist.types';
 
 export function useLiveAssist() {
   const store = useLiveAssistStore();
@@ -48,9 +47,11 @@ export function useLiveAssist() {
     console.log('[LiveAssist] Setting up event listener');
 
     const unsubscribe = api.liveAssistOn.onUpdate((event) => {
-      console.log('[LiveAssist] Received assists:', event.assists.length);
-      const assists = event.assists as LiveAssistItem[];
-      store.addAssists(assists);
+      console.log('[LiveAssist] Received insights:', {
+        sayThis: event.insights.say_this.length,
+        askThis: event.insights.ask_this.length,
+      });
+      store.addInsights(event.insights);
     });
 
     return () => {
@@ -60,7 +61,8 @@ export function useLiveAssist() {
   }, [store]);
 
   return {
-    assists: store.assists,
+    sayThis: store.sayThis,
+    askThis: store.askThis,
     isProcessing: store.isProcessing,
     lastProcessedAt: store.lastProcessedAt,
     error: store.error,

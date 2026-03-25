@@ -2,18 +2,17 @@
  * Transcription Panel Component
  *
  * Design matching Figma:
- * - Header with transcript icon and Visual Analysis toggle
+ * - Header with transcript icon
  * - Timestamp badges (orange for You, blue for Them)
  * - Visual Analysis entries with blue styling
- * - Gradient overlays at top and bottom
+ * - Auto-scroll on new items
  */
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useTranscriptionStore, TranscriptItem } from '../../stores/transcription.store';
 import { useVisualIndexStore, VisualIndexItem } from '../../stores/visual-index.store';
 import { useSessionStore } from '../../stores/session.store';
-import { trpc } from '../../api/trpc';
 
 // Sparkle icon for Meeting Transcript
 function SparkleIcon() {
@@ -28,28 +27,6 @@ function SparkleIcon() {
         fill="rgba(236, 91, 22, 0.1)"
       />
     </svg>
-  );
-}
-
-interface ToggleProps {
-  enabled: boolean;
-  onChange: (enabled: boolean) => void;
-}
-
-function Toggle({ enabled, onChange }: ToggleProps) {
-  return (
-    <button
-      onClick={() => onChange(!enabled)}
-      className={`w-[28.8px] h-[16px] rounded-[16px] relative transition-colors ${
-        enabled ? 'bg-[#ec5b16]' : 'bg-[#e4e4ec]'
-      }`}
-    >
-      <div
-        className={`absolute w-[12px] h-[12px] bg-white rounded-[6px] top-[2px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.15)] transition-all ${
-          enabled ? 'left-[14.8px]' : 'left-[2px]'
-        }`}
-      />
-    </button>
   );
 }
 
@@ -170,141 +147,83 @@ function PendingMessage({ text, source }: PendingMessageProps) {
   );
 }
 
+// Merge and sort transcript items with visual items by timestamp
+interface MergedItem {
+  type: 'transcript' | 'visual';
+  timestamp: number;
+  data: TranscriptItem | VisualIndexItem;
+}
+
+function mergeItems(transcripts: TranscriptItem[], visuals: VisualIndexItem[]): MergedItem[] {
+  const merged: MergedItem[] = [
+    ...transcripts.map((t) => ({ type: 'transcript' as const, timestamp: t.timestamp, data: t })),
+    ...visuals.map((v) => ({ type: 'visual' as const, timestamp: v.timestamp, data: v })),
+  ];
+  return merged.sort((a, b) => a.timestamp - b.timestamp);
+}
+
 export function TranscriptionPanel() {
   const { items, enabled, pendingMic, pendingSystemAudio } = useTranscriptionStore();
-  const visualIndexStore = useVisualIndexStore();
-  const { items: visualItems, enabled: visualAnalysisEnabled, isRunning, sceneIndexId } = visualIndexStore;
-  const { status, sessionId, screenWsConnectionId } = useSessionStore();
+  const { items: visualItems } = useVisualIndexStore();
+  const { status } = useSessionStore();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prevItemCountRef = useRef(0);
 
   const isRecording = status === 'recording';
 
-  // tRPC mutations for visual index control
-  const startVisualIndexMutation = trpc.visualIndex.start.useMutation();
-  const pauseVisualIndexMutation = trpc.visualIndex.pause.useMutation();
-  const resumeVisualIndexMutation = trpc.visualIndex.resume.useMutation();
-
-  // Handle visual analysis toggle - starts/pauses indexing
-  const handleVisualAnalysisToggle = useCallback(async (newEnabled: boolean) => {
-    if (!isRecording || !sessionId || !screenWsConnectionId) {
-      // Just toggle visibility if not recording or no screen ws
-      visualIndexStore.setEnabled(newEnabled);
-      return;
-    }
-
-    visualIndexStore.setEnabled(newEnabled);
-
-    if (newEnabled) {
-      // Turning ON - start or resume visual indexing
-      if (!sceneIndexId) {
-        // First time - start visual indexing
-        try {
-          const result = await startVisualIndexMutation.mutateAsync({
-            sessionId,
-            screenWsConnectionId,
-          });
-          if (result.success && result.sceneIndexId) {
-            visualIndexStore.setSceneIndexId(result.sceneIndexId);
-            visualIndexStore.setRunning(true);
-          }
-        } catch (error) {
-          console.error('[VisualIndex] Failed to start:', error);
-        }
-      } else {
-        // Resume existing scene index
-        try {
-          const result = await resumeVisualIndexMutation.mutateAsync({ sessionId });
-          if (result.success) {
-            visualIndexStore.setRunning(true);
-          }
-        } catch (error) {
-          console.error('[VisualIndex] Failed to resume:', error);
-        }
-      }
-    } else {
-      // Turning OFF - pause visual indexing
-      if (sceneIndexId && isRunning) {
-        try {
-          const result = await pauseVisualIndexMutation.mutateAsync({ sessionId });
-          if (result.success) {
-            visualIndexStore.setRunning(false);
-          }
-        } catch (error) {
-          console.error('[VisualIndex] Failed to pause:', error);
-        }
-      }
-    }
-  }, [isRecording, sessionId, screenWsConnectionId, sceneIndexId, isRunning, visualIndexStore, startVisualIndexMutation, pauseVisualIndexMutation, resumeVisualIndexMutation]);
+  // Merge transcript and visual items sorted by timestamp
+  const mergedItems = mergeItems(items, visualItems);
+  const totalItemCount = mergedItems.length + (pendingMic ? 1 : 0) + (pendingSystemAudio ? 1 : 0);
 
   // Auto-scroll to bottom when new items arrive
   useEffect(() => {
-    if (scrollRef.current) {
+    if (totalItemCount > prevItemCountRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [items, visualItems, pendingMic, pendingSystemAudio]);
+    prevItemCountRef.current = totalItemCount;
+  }, [totalItemCount]);
 
   return (
-    <div className="flex flex-col h-full gap-[20px] pt-[8px]">
+    <div className="border border-[#efefef] rounded-[12px] flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-[4px] shrink-0">
+      <div className="bg-white border-b border-[#efefef] px-[16px] py-[10px] flex items-center gap-[8px] shrink-0 rounded-t-[12px]">
         <SparkleIcon />
-        <h2 className="flex-1 font-semibold text-[18px] text-black tracking-[0.09px]">
-          Meeting Transcript
-        </h2>
-        {/* Visual Analysis Toggle - only show during recording with screen enabled */}
-        {isRecording && screenWsConnectionId && (
-          <div className="flex items-center gap-[6px]">
-            <span className="font-medium text-[14px] text-[#464646] leading-[18px]">
-              Visual Analysis
-            </span>
-            <Toggle enabled={visualAnalysisEnabled} onChange={handleVisualAnalysisToggle} />
-          </div>
-        )}
+        <span className="font-medium text-[15px] text-black">Meeting Transcript</span>
       </div>
 
-      {/* Transcript Container */}
-      <div className="flex-1 min-h-0 border border-[rgba(4,4,4,0.1)] rounded-[16px] relative overflow-hidden">
-        {/* Top gradient overlay */}
-        <div className="absolute top-0 left-0 right-0 h-[52px] rounded-t-[15px] bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
-
-        {/* Scrollable content */}
-        <div
-          ref={scrollRef}
-          className="h-full overflow-y-auto px-[20px] py-[20px] flex flex-col gap-[10px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-        >
-          {items.length === 0 && !pendingMic && !pendingSystemAudio ? (
-            <div className="flex flex-col items-center justify-center h-full text-center py-16">
-              <div className="w-[64px] h-[64px] rounded-full bg-[#f7f7f7] flex items-center justify-center mb-4">
-                <SparkleIcon />
-              </div>
-              <p className="text-[#464646] font-medium text-[14px]">
-                {enabled
-                  ? isRecording
-                    ? 'Waiting for speech...'
-                    : 'Start recording to see transcription'
-                  : 'Enable transcription to see live text'}
-              </p>
+      {/* Transcript Content */}
+      <div
+        ref={scrollRef}
+        className="flex-1 bg-white overflow-y-auto p-[16px] flex flex-col gap-[10px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+      >
+        {mergedItems.length === 0 && !pendingMic && !pendingSystemAudio ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-16">
+            <div className="w-[64px] h-[64px] rounded-full bg-[#f7f7f7] flex items-center justify-center mb-4">
+              <SparkleIcon />
             </div>
-          ) : (
-            <>
-              {items.map((item) => (
-                <TranscriptMessage key={item.id} item={item} />
-              ))}
+            <p className="text-[#464646] font-medium text-[14px]">
+              {enabled
+                ? isRecording
+                  ? 'Waiting for speech...'
+                  : 'Start recording to see transcription'
+                : 'Enable transcription to see live text'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {mergedItems.map((item) =>
+              item.type === 'transcript' ? (
+                <TranscriptMessage key={(item.data as TranscriptItem).id} item={item.data as TranscriptItem} />
+              ) : (
+                <VisualAnalysisEntry key={(item.data as VisualIndexItem).id} item={item.data as VisualIndexItem} />
+              )
+            )}
 
-              {/* Visual Analysis entries */}
-              {visualAnalysisEnabled && visualItems.map((item) => (
-                <VisualAnalysisEntry key={item.id} item={item} />
-              ))}
-
-              {/* Pending transcripts */}
-              {pendingMic && <PendingMessage text={pendingMic} source="mic" />}
-              {pendingSystemAudio && <PendingMessage text={pendingSystemAudio} source="system_audio" />}
-            </>
-          )}
-        </div>
-
-        {/* Bottom gradient overlay */}
-        <div className="absolute bottom-0 left-0 right-0 h-[51px] rounded-b-[15px] bg-gradient-to-t from-white to-transparent pointer-events-none z-10" />
+            {/* Pending transcripts */}
+            {pendingMic && <PendingMessage text={pendingMic} source="mic" />}
+            {pendingSystemAudio && <PendingMessage text={pendingSystemAudio} source="system_audio" />}
+          </>
+        )}
       </div>
     </div>
   );

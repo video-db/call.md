@@ -56,17 +56,9 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
   // Skip setup and start recording with whatever data is already filled
   // Accepts optional overrides for name/description from local step state
   const handleSkipAndRecord = async (overrideName?: string, overrideDescription?: string) => {
-    console.log('[MeetingSetupFlow] handleSkipAndRecord called');
-    console.log('[MeetingSetupFlow] overrideName:', overrideName);
-    console.log('[MeetingSetupFlow] overrideDescription:', overrideDescription);
-    console.log('[MeetingSetupFlow] store name:', name);
-    console.log('[MeetingSetupFlow] store description:', description);
 
     const finalName = (overrideName ?? name).trim() || generateDefaultMeetingName();
     const finalDescription = (overrideDescription ?? description).trim();
-
-    console.log('[MeetingSetupFlow] finalName:', finalName);
-    console.log('[MeetingSetupFlow] finalDescription:', finalDescription);
 
     // Update store so RecordingHeader can display the correct name
     setInfo(finalName, finalDescription);
@@ -146,7 +138,7 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
   const isSkipping = isStarting && !isGenerating;
 
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="w-full flex flex-col items-center relative">
       {/* Main content */}
       <div className="w-full max-w-[480px] px-6 relative z-10">
         {error && (

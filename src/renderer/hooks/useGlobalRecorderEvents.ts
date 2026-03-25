@@ -38,28 +38,21 @@ export function useGlobalRecorderEvents() {
     const api = getElectronAPI();
     if (!api) return;
 
-    console.log('[Global] Setting up recorder event listener');
-
     const unsubscribe = api.on.recorderEvent((event: RecorderEvent) => {
       const session = sessionStoreRef.current;
       const transcription = transcriptionStoreRef.current;
       const visualIndex = visualIndexStoreRef.current;
 
-      console.log('[GlobalRecorderEvents] Event received:', event.event, event.data);
-
       switch (event.event) {
         case 'recording:started':
-          console.log('[GlobalRecorderEvents] Recording started, setting status to recording');
           session.setStatus('recording');
           break;
 
         case 'recording:stopped':
-          console.log('[GlobalRecorderEvents] Recording stopped, setting status to processing');
           session.setStatus('processing');
           break;
 
         case 'recording:error':
-          console.error('[GlobalRecorderEvents] Recording error:', event.data);
           session.setError(String(event.data));
           session.setStatus('idle');
           break;
@@ -98,7 +91,7 @@ export function useGlobalRecorderEvents() {
           break;
 
         case 'visual_index':
-          if (event.data && visualIndex.enabled) {
+          if (event.data) {
             const visualData = event.data as VisualIndexEvent;
             visualIndex.addItem({
               text: visualData.text,

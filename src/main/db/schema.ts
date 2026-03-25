@@ -38,6 +38,7 @@ export const recordings = sqliteTable('recordings', {
   meetingChecklist: text('meeting_checklist'), // JSON: string[] (in-meeting agenda)
   // Post-meeting analysis
   postMeetingChecklist: text('post_meeting_checklist'), // JSON: string[] (action items after meeting)
+  postMeetingChecklistCompleted: text('post_meeting_checklist_completed'), // JSON: number[] (indices of completed items)
 });
 
 // Meeting Co-Pilot Tables

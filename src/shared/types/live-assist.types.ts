@@ -5,28 +5,12 @@
  * transcript chunks and provides contextual suggestions.
  */
 
-export type AssistType = 'ask' | 'speak' | 'act';
-export type AssistUrgency = 'now' | 'soon' | 'later';
-
-export interface LiveAssistItem {
-  id: string;
-  type: AssistType;
-  urgency: AssistUrgency;
-  text: string;
-  reason: string;
-  timestamp: number; // When this assist was generated
+export interface LiveInsights {
+  say_this: string[];
+  ask_this: string[];
 }
 
-export interface LiveAssistResponse {
-  assists: Array<{
-    type: AssistType;
-    urgency: AssistUrgency;
-    text: string;
-    reason: string;
-  }>;
-}
-
-export interface LiveAssistEvent {
-  assists: LiveAssistItem[];
+export interface LiveInsightsEvent {
+  insights: LiveInsights;
   processedAt: number;
 }

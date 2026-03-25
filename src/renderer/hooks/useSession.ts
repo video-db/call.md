@@ -53,8 +53,10 @@ export function useSession() {
   }, [sessionStore.status, sessionStore.startTime]);
 
   const startRecording = useCallback(async (meetingSetup?: MeetingSetupData) => {
+    console.log('[useSession] startRecording called with:', meetingSetup?.name);
     const api = getElectronAPI();
     if (!api) {
+      console.log('[useSession] Error: Electron API not available');
       sessionStore.setError('Electron API not available');
       return;
     }
@@ -63,10 +65,12 @@ export function useSession() {
     const apiUrl = configStore.apiUrl;
 
     if (!accessToken) {
+      console.log('[useSession] Error: Not authenticated');
       sessionStore.setError('Not authenticated. Please log in first.');
       return;
     }
 
+    console.log('[useSession] Setting status to starting');
     sessionStore.setStatus('starting');
     transcriptionStore.clear();
     useVisualIndexStore.getState().clear();
@@ -156,8 +160,10 @@ export function useSession() {
         }
       }
 
+      console.log('[useSession] Recording started successfully, sessionId:', captureSession.sessionId);
       sessionStore.startSession(captureSession.sessionId, sessionToken!, tokenExpiresAt!, result.screenWsConnectionId);
     } catch (error) {
+      console.log('[useSession] Error starting recording:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to start recording';
 
       if (errorMessage.includes('logged in') || errorMessage.includes('UNAUTHORIZED')) {

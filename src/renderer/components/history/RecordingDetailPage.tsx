@@ -23,6 +23,7 @@ import {
   Check,
   Loader2,
   Video,
+  Copy,
 } from 'lucide-react';
 import { trpc } from '../../api/trpc';
 import type { Recording } from '../../../shared/schemas/recording.schema';
@@ -96,11 +97,6 @@ export function RecordingDetailPage({ recordingId, onBack }: RecordingDetailPage
   const title = recording.meetingName || `Recording - ${formatDate(recording.createdAt)}`;
   const isVideoReady = recording.status === 'available' && !!recording.playerUrl;
 
-  // Debug logging
-  console.log('[RecordingDetailPage] videoId:', recording.videoId);
-  console.log('[RecordingDetailPage] collectionId (from recording):', recording.collectionId);
-  console.log('[RecordingDetailPage] collectionId (local state):', collectionId);
-
   return (
     <div className="bg-[#f7f7f7] h-full flex flex-col pt-[10px] px-[10px]">
       {/* Header */}
@@ -138,7 +134,11 @@ export function RecordingDetailPage({ recordingId, onBack }: RecordingDetailPage
             />
 
             {/* Action Items Card (Post-Meeting Checklist) */}
-            <ActionItemsCard checklist={recording.postMeetingChecklist} />
+            <ActionItemsCard
+              recordingId={recordingId}
+              checklist={recording.postMeetingChecklist}
+              completedIndices={recording.postMeetingChecklistCompleted}
+            />
           </div>
         </div>
 
@@ -362,16 +362,31 @@ interface SummaryCardProps {
 }
 
 function SummaryCard({ summary }: SummaryCardProps) {
+  const [copied, setCopied] = useState(false);
+
   if (!summary) return null;
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(summary);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="bg-[#fff5ec] border border-[#ffe9d3] rounded-[16px] p-[20px] flex flex-col gap-[16px]">
       {/* Header */}
       <div className="flex items-center gap-[8px]">
         <FileText className="h-5 w-5 text-[#ec5b16]" />
-        <h3 className="text-[16px] font-medium text-black tracking-[0.08px]">
+        <h3 className="flex-1 text-[16px] font-medium text-black tracking-[0.08px]">
           Meeting Summary
         </h3>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-[4px] px-[10px] py-[6px] rounded-[8px] text-[12px] font-medium text-[#ec5b16] hover:bg-[#ffe9d3] transition-colors"
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
       </div>
       {/* Content */}
       <p className="text-[14px] text-[#2d2d2d] leading-[20px] tracking-[0.07px]">
@@ -388,7 +403,19 @@ interface KeyPointsCardProps {
 }
 
 function KeyPointsCard({ keyPoints, expanded, onToggle }: KeyPointsCardProps) {
+  const [copied, setCopied] = useState(false);
+
   if (!keyPoints || keyPoints.length === 0) return null;
+
+  const handleCopy = async () => {
+    const text = keyPoints.map((kp, idx) => {
+      const points = kp.points.map(p => `  • ${p}`).join('\n');
+      return `${idx + 1}. ${kp.topic}\n${points}`;
+    }).join('\n\n');
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className={cn(
@@ -398,9 +425,16 @@ function KeyPointsCard({ keyPoints, expanded, onToggle }: KeyPointsCardProps) {
       {/* Header */}
       <div className="flex items-center gap-[8px]">
         <List className="h-5 w-5 text-[#ec5b16]" />
-        <h3 className="text-[16px] font-medium text-black tracking-[0.08px]">
+        <h3 className="flex-1 text-[16px] font-medium text-black tracking-[0.08px]">
           Key Points
         </h3>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-[4px] px-[10px] py-[6px] rounded-[8px] text-[12px] font-medium text-[#ec5b16] hover:bg-[#ffe9d3] transition-colors z-20"
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
       </div>
 
       {/* Content */}
@@ -441,11 +475,38 @@ function KeyPointsCard({ keyPoints, expanded, onToggle }: KeyPointsCardProps) {
 }
 
 interface ActionItemsCardProps {
+  recordingId: number;
   checklist: string[] | null | undefined;
+  completedIndices: number[] | null | undefined;
 }
 
-function ActionItemsCard({ checklist }: ActionItemsCardProps) {
-  if (!checklist || checklist.length === 0) return null;
+function ActionItemsCard({ recordingId, checklist, completedIndices }: ActionItemsCardProps) {
+  const [checked, setChecked] = useState<Set<number>>(new Set(completedIndices || []));
+  const updateChecklistMutation = trpc.recordings.updateChecklistCompletion.useMutation();
+
+  // Sync local state when completedIndices changes
+  useEffect(() => {
+    setChecked(new Set(completedIndices || []));
+  }, [completedIndices]);
+
+  const handleToggle = (idx: number) => {
+    setChecked(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(idx)) {
+        newSet.delete(idx);
+      } else {
+        newSet.add(idx);
+      }
+      // Persist to DB
+      updateChecklistMutation.mutate({
+        recordingId,
+        completedIndices: Array.from(newSet),
+      });
+      return newSet;
+    });
+  };
+
+  const isEmpty = !checklist || checklist.length === 0;
 
   return (
     <div className="bg-[#f7f7f7] border border-[#efefef] rounded-[16px] p-[20px] flex flex-col gap-[16px]">
@@ -458,22 +519,38 @@ function ActionItemsCard({ checklist }: ActionItemsCardProps) {
       </div>
 
       {/* Content */}
-      <div className="flex flex-col gap-[10px]">
-        {checklist.map((item, idx) => (
-          <div
-            key={idx}
-            className="bg-white border border-[#efefef] rounded-[8px] px-[16px] py-[12px] flex items-start gap-[12px]"
-          >
-            {/* Checkbox */}
-            <div className="w-4 h-4 shrink-0 rounded border border-[#ec5b16] flex items-center justify-center mt-[2px]">
-              {/* Unchecked by default */}
-            </div>
-            <span className="text-[14px] text-black leading-[20px] tracking-[0.07px]">
-              {item}
-            </span>
-          </div>
-        ))}
-      </div>
+      {isEmpty ? (
+        <p className="text-[14px] text-[#969696] italic">
+          No post meeting agenda detected
+        </p>
+      ) : (
+        <div className="flex flex-col gap-[10px]">
+          {checklist.map((item, idx) => {
+            const isChecked = checked.has(idx);
+            return (
+              <div
+                key={idx}
+                onClick={() => handleToggle(idx)}
+                className="bg-white border border-[#efefef] rounded-[8px] px-[16px] py-[12px] flex items-start gap-[12px] cursor-pointer hover:bg-gray-50 transition-colors"
+              >
+                {/* Checkbox */}
+                <div className={cn(
+                  "w-4 h-4 shrink-0 rounded border flex items-center justify-center mt-[2px]",
+                  isChecked ? "bg-[#ec5b16] border-[#ec5b16]" : "border-[#ec5b16]"
+                )}>
+                  {isChecked && <Check className="h-3 w-3 text-white" />}
+                </div>
+                <span className={cn(
+                  "text-[14px] leading-[20px] tracking-[0.07px]",
+                  isChecked ? "text-[#969696] line-through" : "text-black"
+                )}>
+                  {item}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -497,8 +574,9 @@ function VideoPlayerSection({ playerUrl, isReady }: VideoPlayerSectionProps) {
             allowFullScreen
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-[#969696]">
-            <p className="text-[14px]">Video not available yet</p>
+          <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-[#969696]">
+            <Loader2 className="h-8 w-8 animate-spin text-[#ec5b16]" />
+            <p className="text-[14px]">Loading the video...</p>
           </div>
         )}
       </div>

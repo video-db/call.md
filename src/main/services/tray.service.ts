@@ -31,9 +31,7 @@ class TrayService {
 
     try {
       icon = nativeImage.createFromPath(iconPath);
-      // Resize for tray (16x16 on most platforms)
-      // Don't set as template - using colored VideoDB logo
-      icon = icon.resize({ width: 16, height: 16 });
+      icon = icon.resize({ width: 24, height: 24 });
     } catch (error) {
       log.warn({ error }, 'Failed to load tray icon, using empty');
       icon = nativeImage.createEmpty();
@@ -73,12 +71,10 @@ class TrayService {
    * Get the path to the tray icon
    */
   private getIconPath(): string {
-    // In packaged app, icons are in resources/
     if (app.isPackaged) {
-      return path.join(process.resourcesPath, 'resources', 'icon.png');
+      return path.join(process.resourcesPath, 'resources', 'icon-color-black-bg.png');
     }
-    // In development, look in resources/
-    return path.join(app.getAppPath(), 'resources', 'icon.png');
+    return path.join(app.getAppPath(), 'resources', 'icon-color-black-bg.png');
   }
 
   /**

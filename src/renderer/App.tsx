@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logoIcon from '../../resources/icon-color-black-bg.png';
 import { NewSidebar } from './components/layout/NewSidebar';
 import { AuthView } from './components/auth/AuthView';
 import { TopStatusBar } from './components/recording/TopStatusBar';
@@ -32,13 +33,8 @@ import { RecordingHeader, MetricsBar, LiveAssistPanel, MeetingAgendaPanel } from
 
 type Tab = 'home' | 'history' | 'settings';
 
-// Logo icon for permissions
 function LogoIcon() {
-  return (
-    <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="50" height="50" rx="12" fill="#EC5B16" />
-    </svg>
-  );
+  return <img src={logoIcon} width={50} height={50} alt="Call.md" />;
 }
 
 // System audio icon

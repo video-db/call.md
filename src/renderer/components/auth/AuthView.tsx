@@ -10,20 +10,10 @@ import { Loader2, ChevronRight } from 'lucide-react';
 import { useConfigStore } from '../../stores/config.store';
 import { trpc } from '../../api/trpc';
 import { getElectronAPI } from '../../api/ipc';
+import logoIcon from '../../../../resources/icon-color-black-bg.png';
 
-// Logo SVG component
 function LogoIcon() {
-  return (
-    <svg
-      width="50"
-      height="50"
-      viewBox="0 0 50 50"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect width="50" height="50" rx="12" fill="#EC5B16" />
-    </svg>
-  );
+  return <img src={logoIcon} width={50} height={50} alt="Call.md" />;
 }
 
 // Step indicators component - exported for use in other setup views

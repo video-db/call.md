@@ -467,45 +467,6 @@ export function CalendarPanel() {
         </div>
       )}
 
-      {/* Info Card */}
-      <div className="bg-white border border-[#ededf3] rounded-[12px] shadow-[0px_1.272px_15.267px_0px_rgba(0,0,0,0.05)]">
-        <div className="px-[20px] py-[16px]">
-          <div className="space-y-[12px]">
-            <div className="flex items-start gap-[12px]">
-              <div className="w-[24px] h-[24px] rounded-full bg-[#fff5ec] flex items-center justify-center shrink-0">
-                <span className="text-[12px] font-semibold text-[#ec5b16]">1</span>
-              </div>
-              <p className="text-[13px] text-[#464646] leading-[18px]">
-                <span className="font-medium text-[#141420]">System Tray:</span> When you close the app, it continues running in your system tray to monitor your calendar.
-              </p>
-            </div>
-            <div className="flex items-start gap-[12px]">
-              <div className="w-[24px] h-[24px] rounded-full bg-[#fff5ec] flex items-center justify-center shrink-0">
-                <span className="text-[12px] font-semibold text-[#ec5b16]">2</span>
-              </div>
-              <p className="text-[13px] text-[#464646] leading-[18px]">
-                <span className="font-medium text-[#141420]">Notifications:</span> You'll receive a notification before each meeting starts based on your preferences above.
-              </p>
-            </div>
-            <div className="flex items-start gap-[12px]">
-              <div className="w-[24px] h-[24px] rounded-full bg-[#fff5ec] flex items-center justify-center shrink-0">
-                <span className="text-[12px] font-semibold text-[#ec5b16]">3</span>
-              </div>
-              <p className="text-[13px] text-[#464646] leading-[18px]">
-                <span className="font-medium text-[#141420]">Privacy:</span> Your calendar data stays on your device. We only read event titles and times to send notifications.
-              </p>
-            </div>
-            <div className="flex items-start gap-[12px]">
-              <div className="w-[24px] h-[24px] rounded-full bg-[#fff5ec] flex items-center justify-center shrink-0">
-                <span className="text-[12px] font-semibold text-[#ec5b16]">4</span>
-              </div>
-              <p className="text-[13px] text-[#464646] leading-[18px]">
-                <span className="font-medium text-[#141420]">Enable Notifications:</span> Make sure Call.md notifications are enabled in <span className="font-medium">System Settings → Notifications → Call.md</span>.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

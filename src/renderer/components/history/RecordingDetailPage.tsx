@@ -4,7 +4,7 @@
  * Full page view for a recording with:
  * - Header: back button, title, metadata, actions
  * - Left panel: Meeting summary, key points, checklist
- * - Right panel: Video player, chat button, transcript
+ * - Right panel: Video player, chat button
  */
 
 import React, { useState, useEffect } from 'react';
@@ -34,25 +34,12 @@ interface RecordingDetailPageProps {
   onBack: () => void;
 }
 
-// Format time as MM:SS for transcript
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
 export function RecordingDetailPage({ recordingId, onBack }: RecordingDetailPageProps) {
   const [showAllKeyPoints, setShowAllKeyPoints] = useState(false);
   const [collectionId, setCollectionId] = useState<string | null>(null);
 
   // Fetch recording data
   const { data: recording, isLoading } = trpc.recordings.get.useQuery(
-    { recordingId },
-    { enabled: !!recordingId }
-  );
-
-  // Fetch transcript from database
-  const { data: transcript } = trpc.recordings.getTranscript.useQuery(
     { recordingId },
     { enabled: !!recordingId }
   );
@@ -158,9 +145,6 @@ export function RecordingDetailPage({ recordingId, onBack }: RecordingDetailPage
               disabled={!isVideoReady}
             />
           </div>
-
-          {/* Transcript Section */}
-          <TranscriptSection transcript={transcript || []} />
         </div>
       </div>
     </div>
@@ -624,84 +608,6 @@ function ChatWithVideoButton({ videoId, collectionId, disabled }: ChatWithVideoB
         </span>
       </div>
     </button>
-  );
-}
-
-interface TranscriptSegment {
-  id: string;
-  channel: 'me' | 'them';
-  text: string;
-  startTime: number;
-}
-
-interface TranscriptSectionProps {
-  transcript: TranscriptSegment[];
-}
-
-function TranscriptSection({ transcript }: TranscriptSectionProps) {
-  return (
-    <div className="flex flex-col gap-[20px] flex-1 min-h-0">
-      {/* Header */}
-      <div className="flex items-center gap-[4px]">
-        <Sparkles className="h-5 w-5 text-[#ec5b16]" />
-        <h2 className="text-[18px] font-semibold text-black tracking-[0.09px]">
-          Meeting Transcript
-        </h2>
-      </div>
-
-      {/* Transcript Content */}
-      <div className="border border-[#efefef] rounded-[16px] flex-1 min-h-[200px] max-h-[500px] overflow-hidden relative">
-        <div className="h-full overflow-y-auto px-[20px]">
-          {/* Top gradient overlay */}
-          <div className="sticky top-0 left-0 right-0 h-[52px] bg-gradient-to-b from-white to-transparent pointer-events-none z-10" />
-
-          {/* Transcript items */}
-          <div className="flex flex-col gap-[8px] -mt-[40px] pb-[20px]">
-            {transcript.length === 0 ? (
-              <div className="py-8 text-center text-[#969696] text-[14px]">
-                No transcript available
-              </div>
-            ) : (
-              transcript.map((segment) => (
-                <TranscriptChunk
-                  key={segment.id}
-                  time={formatTime(segment.startTime)}
-                  speaker={segment.channel === 'me' ? 'You' : 'Them'}
-                  text={segment.text}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface TranscriptChunkProps {
-  time: string;
-  speaker: string;
-  text: string;
-}
-
-function TranscriptChunk({ time, speaker, text }: TranscriptChunkProps) {
-  return (
-    <div className="flex gap-[12px] items-start px-[8px] py-[6px] rounded-[10px]">
-      {/* Time */}
-      <div className="flex items-center justify-center">
-        <span className="text-[12px] text-[#969696] leading-[16px]">{time}</span>
-      </div>
-
-      {/* Speaker & Text */}
-      <div className="flex-1 flex flex-col gap-[4px]">
-        <span className="text-[13px] font-medium text-black leading-[16px]">
-          {speaker}
-        </span>
-        <p className="text-[12px] text-[#464646] leading-[16px]">
-          {text}
-        </p>
-      </div>
-    </div>
   );
 }
 

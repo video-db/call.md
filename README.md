@@ -35,7 +35,10 @@
 
 ## Demo
 
-https://github.com/user-attachments/assets/e3cd2dcc-d9ab-4f5f-8904-52c56133ed2d
+
+https://github.com/user-attachments/assets/94470e99-c0f6-4e35-9d03-b28efa362b3b
+
+
 
 ## Download
 

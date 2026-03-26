@@ -15,6 +15,7 @@ import {
   setMCPMainWindow,
   setCalendarMainWindow,
   setLiveAssistWindow,
+  setWidgetMainWindow,
   sendToRenderer,
   shutdownCaptureClient,
 } from './ipc';
@@ -148,6 +149,7 @@ async function createWindow(): Promise<void> {
   setMCPMainWindow(mainWindow);
   setCalendarMainWindow(mainWindow);
   setLiveAssistWindow(mainWindow);
+  setWidgetMainWindow(mainWindow);
 
   if (isDev) {
     const VITE_DEV_PORT = 51730;

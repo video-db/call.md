@@ -1,6 +1,6 @@
 {
 	"name": "call-md",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"type": "commonjs",
 	"description": "Call.md - Record meetings with real-time transcription and AI-powered insights",
 	"author": {

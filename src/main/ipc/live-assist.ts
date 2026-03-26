@@ -9,6 +9,7 @@ import { ipcMain, BrowserWindow } from 'electron';
 import { getLiveAssistService, resetLiveAssistService } from '../services/live-assist.service';
 import { getMCPInferenceService, resetMCPInferenceService } from '../services/mcp-inference.service';
 import { createChildLogger } from '../lib/logger';
+import { updateWidgetLiveAssist } from './widget';
 import type { LiveInsightsEvent } from '../../shared/types/live-assist.types';
 import type { MCPDisplayResult } from '../../shared/types/mcp.types';
 
@@ -37,6 +38,11 @@ export function setupLiveAssistHandlers(): void {
     liveAssistService.on('insights', (event: LiveInsightsEvent) => {
       logger.info({ sayCount: event.insights.say_this.length, askCount: event.insights.ask_this.length }, 'Sending insights to renderer');
       sendToRenderer('live-assist:update', event);
+      // Also send to floating widget
+      updateWidgetLiveAssist({
+        sayThis: event.insights.say_this,
+        askThis: event.insights.ask_this,
+      });
     });
     liveAssistService.start();
 

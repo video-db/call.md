@@ -10,6 +10,12 @@ export default defineConfig({
     outDir: '../../dist/renderer',
     emptyOutDir: true,
     sourcemap: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'src/renderer/index.html'),
+        widget: path.resolve(__dirname, 'src/renderer/widget.html'),
+      },
+    },
   },
   resolve: {
     alias: {
@@ -20,5 +26,11 @@ export default defineConfig({
   server: {
     port: 51730,
     strictPort: false,  // Will find next available port if busy
+    // Ensure all HTML files are accessible
+    fs: {
+      allow: ['..'],
+    },
   },
+  // Ensure widget.html is accessible in dev mode
+  appType: 'mpa',
 });

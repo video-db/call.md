@@ -14,11 +14,18 @@ import {
 } from '../services/google-auth.service';
 import { fetchUpcomingEvents } from '../services/google-calendar.service';
 import { getCalendarPoller } from '../services/calendar-poller.service';
+import {
+  getPreparedMeeting,
+  getAllPreparedMeetings,
+  upsertPreparedMeeting,
+  deletePreparedMeeting,
+} from '../db';
 import type {
   CalendarSignInResult,
   CalendarEventsResult,
   CalendarAuthStatusResult,
   UpcomingMeeting,
+  PreparedMeetingInput,
 } from '../../shared/types/calendar.types';
 
 const logger = createChildLogger('ipc-calendar');
@@ -142,6 +149,83 @@ export function setupCalendarHandlers(): void {
     sendToRenderer('calendar:overlapping-meeting', data);
   });
 
+  // Prepared Meetings handlers
+  ipcMain.handle('prepared-meeting:get', async (_event, calendarEventId: string) => {
+    try {
+      const meeting = getPreparedMeeting(calendarEventId);
+      if (!meeting) {
+        return { success: true, meeting: undefined };
+      }
+      return {
+        success: true,
+        meeting: {
+          ...meeting,
+          probingQuestions: meeting.probingQuestions ? JSON.parse(meeting.probingQuestions) : undefined,
+          checklist: meeting.checklist ? JSON.parse(meeting.checklist) : undefined,
+        },
+      };
+    } catch (error) {
+      const err = error as Error;
+      logger.error({ error: err.message, calendarEventId }, 'Failed to get prepared meeting');
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('prepared-meeting:save', async (_event, data: PreparedMeetingInput) => {
+    try {
+      logger.info({ calendarEventId: data.calendarEventId }, 'Saving prepared meeting');
+      const meeting = upsertPreparedMeeting({
+        calendarEventId: data.calendarEventId,
+        name: data.name,
+        description: data.description,
+        probingQuestions: data.probingQuestions ? JSON.stringify(data.probingQuestions) : undefined,
+        checklist: data.checklist ? JSON.stringify(data.checklist) : undefined,
+      });
+      return {
+        success: true,
+        meeting: {
+          ...meeting,
+          probingQuestions: meeting?.probingQuestions ? JSON.parse(meeting.probingQuestions) : undefined,
+          checklist: meeting?.checklist ? JSON.parse(meeting.checklist) : undefined,
+        },
+      };
+    } catch (error) {
+      const err = error as Error;
+      logger.error({ error: err.message, calendarEventId: data.calendarEventId }, 'Failed to save prepared meeting');
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('prepared-meeting:delete', async (_event, calendarEventId: string) => {
+    try {
+      logger.info({ calendarEventId }, 'Deleting prepared meeting');
+      deletePreparedMeeting(calendarEventId);
+      return { success: true };
+    } catch (error) {
+      const err = error as Error;
+      logger.error({ error: err.message, calendarEventId }, 'Failed to delete prepared meeting');
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('prepared-meeting:get-all', async () => {
+    try {
+      const meetings = getAllPreparedMeetings();
+      return {
+        success: true,
+        meetings: meetings.map(m => ({
+          ...m,
+          probingQuestions: m.probingQuestions ? JSON.parse(m.probingQuestions) : undefined,
+          checklist: m.checklist ? JSON.parse(m.checklist) : undefined,
+        })),
+      };
+    } catch (error) {
+      const err = error as Error;
+      logger.error({ error: err.message }, 'Failed to get all prepared meetings');
+      return { success: false, error: err.message };
+    }
+  });
+
   logger.info('Calendar IPC handlers registered');
 }
 
@@ -151,6 +235,10 @@ export function removeCalendarHandlers(): void {
   ipcMain.removeHandler('calendar:is-signed-in');
   ipcMain.removeHandler('calendar:get-events');
   ipcMain.removeHandler('calendar:set-recording-meeting');
+  ipcMain.removeHandler('prepared-meeting:get');
+  ipcMain.removeHandler('prepared-meeting:save');
+  ipcMain.removeHandler('prepared-meeting:delete');
+  ipcMain.removeHandler('prepared-meeting:get-all');
 
   logger.info('Calendar IPC handlers removed');
 }

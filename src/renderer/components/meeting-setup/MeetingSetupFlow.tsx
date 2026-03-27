@@ -1,13 +1,34 @@
 import React, { useEffect } from 'react';
 import { useMeetingSetupStore } from '../../stores/meeting-setup.store';
-import { useSession } from '../../hooks/useSession';
 import { trpc } from '../../api/trpc';
 import { InfoStep } from './InfoStep';
 import { QuestionsStep } from './QuestionsStep';
 import { ChecklistStep } from './ChecklistStep';
+import type { ProbingQuestion } from '../../../shared/types/meeting-setup.types';
+
+export interface MeetingSetupData {
+  name: string;
+  description: string;
+  questions: ProbingQuestion[];
+  checklist: string[];
+}
+
+export interface MeetingSetupLabels {
+  primaryButton?: string;
+  primaryButtonLoading?: string;
+  skipButton?: string;
+  skipButtonLoading?: string;
+  checklistHeadingTitle?: string;
+  checklistHeadingSubtitle?: string;
+}
 
 interface MeetingSetupFlowProps {
   onCancel: () => void;
+  onComplete: (data: MeetingSetupData) => Promise<void>;
+  onSkip?: (data: MeetingSetupData) => Promise<void>;
+  isCompleting?: boolean;
+  labels?: MeetingSetupLabels;
+  showSkipButton?: boolean;
 }
 
 /**
@@ -24,7 +45,14 @@ function generateDefaultMeetingName(): string {
   return `Meeting at ${timeStr}`;
 }
 
-export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
+export function MeetingSetupFlow({
+  onCancel,
+  onComplete,
+  onSkip,
+  isCompleting = false,
+  labels = {},
+  showSkipButton = true,
+}: MeetingSetupFlowProps) {
   const {
     step,
     name,
@@ -43,28 +71,29 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
     getMeetingSetupData,
   } = useMeetingSetupStore();
 
-  const { startRecording, isStarting } = useSession();
-
   const generateQuestionsMutation = trpc.meetingSetup.generateProbingQuestions.useMutation();
   const generateChecklistMutation = trpc.meetingSetup.generateChecklist.useMutation();
 
   // Start at 'info' step since sources are already selected in HomeView
+  // Only change step if we're at the initial 'sources' step (not if step was pre-set)
   useEffect(() => {
-    setStep('info');
-  }, [setStep]);
+    if (step === 'sources') {
+      setStep('info');
+    }
+  }, [step, setStep]);
 
-  // Skip setup and start recording
-  // If description or answered questions exist, generate checklist first
-  // Otherwise skip directly to recording
-  const handleSkipAndRecord = async (overrideName?: string, overrideDescription?: string) => {
+  // Handle skip - generate checklist if context exists, then call onSkip or onComplete
+  const handleSkip = async (overrideName?: string, overrideDescription?: string) => {
     const finalName = (overrideName ?? name).trim() || generateDefaultMeetingName();
     const finalDescription = (overrideDescription ?? description).trim();
 
-    // Update store so RecordingHeader can display the correct name
+    // Update store so the name is available to parent
     setInfo(finalName, finalDescription);
 
     const answeredQuestions = questions.filter(q => q.answer);
     const hasContext = finalDescription || answeredQuestions.length > 0;
+
+    const completeHandler = onSkip || onComplete;
 
     if (hasContext) {
       // Generate checklist first if we have description or answered questions
@@ -80,15 +109,14 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
 
         if (result.success && result.checklist.length > 0) {
           setChecklist(result.checklist);
-          await startRecording({
+          await completeHandler({
             name: finalName,
             description: finalDescription,
             questions: answeredQuestions,
             checklist: result.checklist,
           });
         } else {
-          // Checklist generation returned empty, proceed to recording
-          await startRecording({
+          await completeHandler({
             name: finalName,
             description: finalDescription,
             questions: answeredQuestions,
@@ -96,8 +124,7 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
           });
         }
       } catch {
-        // Checklist generation failed, proceed to recording
-        await startRecording({
+        await completeHandler({
           name: finalName,
           description: finalDescription,
           questions: answeredQuestions,
@@ -107,8 +134,7 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
         setIsGenerating(false);
       }
     } else {
-      // No context (only name or empty), skip directly to recording
-      await startRecording({
+      await completeHandler({
         name: finalName,
         description: finalDescription,
         questions: [],
@@ -173,15 +199,12 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
     setStep('questions');
   };
 
-  const handleStartRecording = async () => {
-    // Get the meeting setup data to pass to the recording
+  const handleComplete = async () => {
     const setupData = getMeetingSetupData();
-
-    // Start the recording with meeting setup data
-    await startRecording(setupData);
+    await onComplete(setupData);
   };
 
-  const isSkipping = isStarting && !isGenerating;
+  const isSkipping = isCompleting && !isGenerating;
 
   return (
     <div className="w-full flex flex-col items-center relative">
@@ -205,7 +228,10 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
             isSkipping={isSkipping}
             onBack={onCancel}
             onNext={handleInfoNext}
-            onSkip={handleSkipAndRecord}
+            onSkip={handleSkip}
+            skipButtonLabel={labels.skipButton}
+            skipButtonLoadingLabel={labels.skipButtonLoading}
+            showSkipButton={showSkipButton}
           />
         )}
 
@@ -217,7 +243,10 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
             onBack={handleQuestionsBack}
             onNext={handleQuestionsNext}
             onAnswerChange={setQuestionAnswer}
-            onSkip={handleSkipAndRecord}
+            onSkip={handleSkip}
+            skipButtonLabel={labels.skipButton}
+            skipButtonLoadingLabel={labels.skipButtonLoading}
+            showSkipButton={showSkipButton}
           />
         )}
 
@@ -226,11 +255,18 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
             name={name}
             description={description}
             checklist={checklist}
-            isStarting={isStarting}
+            isStarting={isCompleting}
             isSkipping={isSkipping}
             onBack={handleChecklistBack}
-            onStart={handleStartRecording}
-            onSkip={handleSkipAndRecord}
+            onStart={handleComplete}
+            onSkip={handleSkip}
+            primaryButtonLabel={labels.primaryButton}
+            primaryButtonLoadingLabel={labels.primaryButtonLoading}
+            skipButtonLabel={labels.skipButton}
+            skipButtonLoadingLabel={labels.skipButtonLoading}
+            showSkipButton={showSkipButton}
+            headingTitle={labels.checklistHeadingTitle}
+            headingSubtitle={labels.checklistHeadingSubtitle}
           />
         )}
       </div>

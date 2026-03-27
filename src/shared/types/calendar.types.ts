@@ -123,3 +123,36 @@ export interface CalendarEvents {
   // Overlapping meeting event (recording active + new meeting starting)
   onOverlappingMeeting: (callback: (data: { currentMeeting?: UpcomingMeeting; nextMeeting: UpcomingMeeting }) => void) => () => void;
 }
+
+// Prepared Meeting - stored context for calendar events before they start
+export interface PreparedMeetingQuestion {
+  question: string;
+  options?: string[];
+  answer: string;
+  customAnswer?: string;
+}
+
+export interface PreparedMeeting {
+  calendarEventId: string;
+  name: string;
+  description?: string | null;
+  probingQuestions?: PreparedMeetingQuestion[];
+  checklist?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PreparedMeetingInput {
+  calendarEventId: string;
+  name: string;
+  description?: string;
+  probingQuestions?: PreparedMeetingQuestion[];
+  checklist?: string[];
+}
+
+export interface PreparedMeetingsApi {
+  get: (calendarEventId: string) => Promise<{ success: boolean; meeting?: PreparedMeeting; error?: string }>;
+  getAll: () => Promise<{ success: boolean; meetings?: PreparedMeeting[]; error?: string }>;
+  save: (data: PreparedMeetingInput) => Promise<{ success: boolean; meeting?: PreparedMeeting; error?: string }>;
+  delete: (calendarEventId: string) => Promise<{ success: boolean; error?: string }>;
+}

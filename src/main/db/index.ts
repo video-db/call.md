@@ -259,6 +259,17 @@ export function initDatabase(): ReturnType<typeof drizzle<typeof schema>> {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- Prepared Meetings table
+    CREATE TABLE IF NOT EXISTS prepared_meetings (
+      calendar_event_id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      probing_questions TEXT,
+      checklist TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   ensureRecordingColumns();
@@ -1777,6 +1788,72 @@ export function updateWorkflow(id: string, data: Partial<schema.Workflow>) {
 export function deleteWorkflow(id: string) {
   const database = getDatabase();
   return database.delete(schema.workflows).where(eq(schema.workflows.id, id)).run();
+}
+
+// Prepared Meetings CRUD Operations
+
+export function getPreparedMeeting(calendarEventId: string) {
+  const database = getDatabase();
+  return database
+    .select()
+    .from(schema.preparedMeetings)
+    .where(eq(schema.preparedMeetings.calendarEventId, calendarEventId))
+    .get();
+}
+
+export function getAllPreparedMeetings() {
+  const database = getDatabase();
+  return database
+    .select()
+    .from(schema.preparedMeetings)
+    .all();
+}
+
+export function upsertPreparedMeeting(data: {
+  calendarEventId: string;
+  name: string;
+  description?: string;
+  probingQuestions?: string;
+  checklist?: string;
+}) {
+  const database = getDatabase();
+  const existing = database
+    .select()
+    .from(schema.preparedMeetings)
+    .where(eq(schema.preparedMeetings.calendarEventId, data.calendarEventId))
+    .get();
+
+  if (existing) {
+    return database
+      .update(schema.preparedMeetings)
+      .set({ ...data, updatedAt: new Date().toISOString() })
+      .where(eq(schema.preparedMeetings.calendarEventId, data.calendarEventId))
+      .returning()
+      .get();
+  }
+
+  return database
+    .insert(schema.preparedMeetings)
+    .values(data)
+    .returning()
+    .get();
+}
+
+export function deletePreparedMeeting(calendarEventId: string) {
+  const database = getDatabase();
+  return database
+    .delete(schema.preparedMeetings)
+    .where(eq(schema.preparedMeetings.calendarEventId, calendarEventId))
+    .run();
+}
+
+export function deleteExpiredPreparedMeetings() {
+  const database = getDatabase();
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  return database
+    .delete(schema.preparedMeetings)
+    .where(lte(schema.preparedMeetings.updatedAt, oneDayAgo))
+    .run();
 }
 
 export { schema };

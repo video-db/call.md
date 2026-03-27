@@ -492,6 +492,10 @@ export function App() {
   } | null>(null);
   // Recording ID to navigate to after recording ends
   const [pendingRecordingNavigation, setPendingRecordingNavigation] = useState<number | null>(null);
+  // Calendar event ID we're preparing context for (null = record mode, string = prepare mode)
+  const [preparingEventId, setPreparingEventId] = useState<string | null>(null);
+  // Loading state for saving prepared meeting
+  const [isSaving, setIsSaving] = useState(false);
   // Settings tab to show when navigating to settings
   const [initialSettingsTab, setInitialSettingsTab] = useState<'account' | 'notifications' | 'mcpServers' | 'workflows' | null>(null);
   // Pending tab change when user needs to confirm discarding meeting setup
@@ -522,6 +526,7 @@ export function App() {
       }
       // No data - just close and navigate
       setShowMeetingSetup(false);
+      setPreparingEventId(null);
       meetingSetupStore.reset();
     }
 
@@ -529,10 +534,12 @@ export function App() {
     if (showMeetingSetup && tab === 'home') {
       if (!hasMeetingSetupData()) {
         setShowMeetingSetup(false);
+        setPreparingEventId(null);
         meetingSetupStore.reset();
       }
       // If has data and clicking home, just show the dashboard
       setShowMeetingSetup(false);
+      setPreparingEventId(null);
       meetingSetupStore.reset();
     }
 
@@ -543,6 +550,7 @@ export function App() {
   const confirmDiscardMeetingSetup = () => {
     if (pendingTabChange) {
       setShowMeetingSetup(false);
+      setPreparingEventId(null);
       meetingSetupStore.reset();
       setActiveTab(pendingTabChange);
       setPendingTabChange(null);
@@ -553,7 +561,7 @@ export function App() {
   const cancelDiscardMeetingSetup = () => {
     setPendingTabChange(null);
   };
-  const { status: sessionStatus, startRecording, stopRecording } = useSession();
+  const { status: sessionStatus, startRecording, stopRecording, isStarting } = useSession();
   const { allGranted, loading: permissionsLoading, checkPermissions } = usePermissions();
   const { prepareNewSession, prepareNewSessionWithInfo, waitForIdle } = useSessionLifecycle();
 
@@ -567,19 +575,48 @@ export function App() {
     if (!isAuthenticated) return;
 
     // Handle "open meeting setup" from notification/tray click
-    const unsubOpenSetup = window.electronAPI.calendarOn.onOpenMeetingSetup((meeting) => {
-      // Clear all stale state and pre-fill meeting info
-      prepareNewSessionWithInfo(meeting.summary, meeting.description || '');
+    const unsubOpenSetup = window.electronAPI.calendarOn.onOpenMeetingSetup(async (meeting) => {
+      // Check if we already have prepared context for this meeting
+      const preparedResult = await window.electronAPI.preparedMeetings.get(meeting.id);
 
-      // Switch to home tab and show meeting setup
       setActiveTab('home');
-      setShowMeetingSetup(true);
+
+      if (preparedResult.success && preparedResult.meeting) {
+        // Prepared context exists → start recording directly (skip setup flow)
+        const prepared = preparedResult.meeting;
+        prepareNewSessionWithInfo(prepared.name, prepared.description || '');
+
+        // Notify main process about which meeting we're recording
+        await window.electronAPI.calendar.setRecordingMeeting(meeting.id);
+
+        const questions = (prepared.probingQuestions || []).map(q => ({
+          question: q.question,
+          options: q.options || [],
+          answer: q.answer,
+          customAnswer: q.customAnswer,
+        }));
+
+        await startRecording({
+          name: prepared.name,
+          description: prepared.description || '',
+          questions,
+          checklist: prepared.checklist || [],
+        });
+
+        // Clean up after use
+        await window.electronAPI.preparedMeetings.delete(meeting.id);
+      } else {
+        // No prepared context - show MeetingSetupFlow with calendar data
+        prepareNewSessionWithInfo(meeting.summary, meeting.description || '');
+        setPreparingEventId(meeting.id);
+        setShowMeetingSetup(true);
+      }
     });
 
     // Handle "auto-start recording" from notification or default_record behavior
     const unsubAutoStart = window.electronAPI.calendarOn.onAutoStartRecording(async (meeting) => {
-      // Clear ALL stale state (including old call summaries) before starting new recording
-      prepareNewSessionWithInfo(meeting.summary, meeting.description || '');
+      // Check for prepared context first
+      const preparedResult = await window.electronAPI.preparedMeetings.get(meeting.id);
 
       // Ensure we're on home tab
       setActiveTab('home');
@@ -587,13 +624,39 @@ export function App() {
       // Notify main process about which meeting we're recording (for overlapping detection)
       await window.electronAPI.calendar.setRecordingMeeting(meeting.id);
 
-      // Start recording directly with meeting data
-      await startRecording({
-        name: meeting.summary,
-        description: meeting.description || '',
-        questions: [],
-        checklist: [],
-      });
+      if (preparedResult.success && preparedResult.meeting) {
+        // Use prepared context
+        const prepared = preparedResult.meeting;
+        prepareNewSessionWithInfo(prepared.name, prepared.description || '');
+
+        // Map prepared questions to ProbingQuestion format (ensure options is always an array)
+        const questions = (prepared.probingQuestions || []).map(q => ({
+          question: q.question,
+          options: q.options || [],
+          answer: q.answer,
+          customAnswer: q.customAnswer,
+        }));
+
+        await startRecording({
+          name: prepared.name,
+          description: prepared.description || '',
+          questions,
+          checklist: prepared.checklist || [],
+        });
+
+        // Clean up after use
+        await window.electronAPI.preparedMeetings.delete(meeting.id);
+      } else {
+        // Fallback to raw calendar data
+        prepareNewSessionWithInfo(meeting.summary, meeting.description || '');
+
+        await startRecording({
+          name: meeting.summary,
+          description: meeting.description || '',
+          questions: [],
+          checklist: [],
+        });
+      }
     });
 
     // Handle overlapping meeting notification
@@ -635,19 +698,44 @@ export function App() {
       // Wait for session to properly reach idle state (no arbitrary timeout)
       await waitForIdle();
 
-      // Clear all stale state before starting next meeting
-      prepareNewSessionWithInfo(nextMeeting.summary, nextMeeting.description || '');
+      // Check for prepared context for the next meeting
+      const preparedResult = await window.electronAPI.preparedMeetings.get(nextMeeting.id);
 
       // Notify main process about new meeting we're recording
       await window.electronAPI.calendar.setRecordingMeeting(nextMeeting.id);
 
-      // Start recording with next meeting
-      await startRecording({
-        name: nextMeeting.summary,
-        description: nextMeeting.description || '',
-        questions: [],
-        checklist: [],
-      });
+      if (preparedResult.success && preparedResult.meeting) {
+        // Use prepared context
+        const prepared = preparedResult.meeting;
+        prepareNewSessionWithInfo(prepared.name, prepared.description || '');
+
+        const questions = (prepared.probingQuestions || []).map(q => ({
+          question: q.question,
+          options: q.options || [],
+          answer: q.answer,
+          customAnswer: q.customAnswer,
+        }));
+
+        await startRecording({
+          name: prepared.name,
+          description: prepared.description || '',
+          questions,
+          checklist: prepared.checklist || [],
+        });
+
+        // Clean up after use
+        await window.electronAPI.preparedMeetings.delete(nextMeeting.id);
+      } else {
+        // Fallback to raw calendar data
+        prepareNewSessionWithInfo(nextMeeting.summary, nextMeeting.description || '');
+
+        await startRecording({
+          name: nextMeeting.summary,
+          description: nextMeeting.description || '',
+          questions: [],
+          checklist: [],
+        });
+      }
 
       setPendingOverlap(null);
     };
@@ -772,7 +860,42 @@ export function App() {
       return (
         <div className="flex flex-col h-full bg-white">
           <div className="flex-1 flex items-center justify-center overflow-auto py-8">
-            <MeetingSetupFlow onCancel={() => setShowMeetingSetup(false)} />
+            <MeetingSetupFlow
+              onCancel={() => {
+                setShowMeetingSetup(false);
+                setPreparingEventId(null);
+              }}
+              onComplete={async (data) => {
+                if (preparingEventId) {
+                  // Prepare mode - save context for later
+                  setIsSaving(true);
+                  try {
+                    await window.electronAPI.preparedMeetings.save({
+                      calendarEventId: preparingEventId,
+                      name: data.name,
+                      description: data.description,
+                      probingQuestions: data.questions,
+                      checklist: data.checklist,
+                    });
+                    setShowMeetingSetup(false);
+                    setPreparingEventId(null);
+                  } finally {
+                    setIsSaving(false);
+                  }
+                } else {
+                  // Record mode - start recording immediately
+                  await startRecording(data);
+                }
+              }}
+              isCompleting={preparingEventId ? isSaving : isStarting}
+              labels={preparingEventId ? {
+                primaryButton: 'Save',
+                primaryButtonLoading: 'Saving...',
+                checklistHeadingTitle: 'Ready to Save',
+                checklistHeadingSubtitle: 'Your meeting context will be used when the meeting starts',
+              } : undefined}
+              showSkipButton={!preparingEventId}
+            />
           </div>
         </div>
       );
@@ -788,6 +911,39 @@ export function App() {
             onNavigateToSettings={(tab) => {
               if (tab) setInitialSettingsTab(tab);
               setActiveTab('settings');
+            }}
+            onPrepareMeeting={async (event) => {
+              // Check if we already have prepared context for this event
+              const preparedResult = await window.electronAPI.preparedMeetings.get(event.id);
+
+              if (preparedResult.success && preparedResult.meeting) {
+                // Load existing prepared context
+                const prepared = preparedResult.meeting;
+                prepareNewSessionWithInfo(prepared.name, prepared.description || '');
+                meetingSetupStore.setInfo(prepared.name, prepared.description || '');
+                if (prepared.probingQuestions && prepared.probingQuestions.length > 0) {
+                  meetingSetupStore.setQuestions(prepared.probingQuestions.map(q => ({
+                    question: q.question,
+                    options: q.options || [],
+                    answer: q.answer,
+                    customAnswer: q.customAnswer,
+                  })));
+                }
+                if (prepared.checklist && prepared.checklist.length > 0) {
+                  meetingSetupStore.setChecklist(prepared.checklist);
+                  // Jump to checklist step since we have full context
+                  meetingSetupStore.setStep('checklist');
+                } else if (prepared.probingQuestions && prepared.probingQuestions.length > 0) {
+                  // Jump to questions step if we have questions but no checklist
+                  meetingSetupStore.setStep('questions');
+                }
+              } else {
+                // No prepared context - use calendar data
+                prepareNewSessionWithInfo(event.summary, event.description || '');
+              }
+
+              setPreparingEventId(event.id);
+              setShowMeetingSetup(true);
             }}
           />
         );

@@ -52,6 +52,9 @@ interface QuestionsStepProps {
   onNext: (questions: ProbingQuestion[]) => void;
   onAnswerChange: (index: number, answer: string, customAnswer?: string) => void;
   onSkip: () => void;
+  skipButtonLabel?: string;
+  skipButtonLoadingLabel?: string;
+  showSkipButton?: boolean;
 }
 
 export function QuestionsStep({
@@ -62,6 +65,9 @@ export function QuestionsStep({
   onNext,
   onAnswerChange,
   onSkip,
+  skipButtonLabel = 'Skip and Record',
+  skipButtonLoadingLabel = 'Starting...',
+  showSkipButton = true,
 }: QuestionsStepProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [showCustomInput, setShowCustomInput] = useState<Record<number, boolean>>({});
@@ -256,25 +262,27 @@ export function QuestionsStep({
           </button>
         </div>
 
-        {/* Skip and Record button */}
-        <button
-          type="button"
-          onClick={() => onSkip()}
-          disabled={isDisabled}
-          className="w-full flex items-center justify-center gap-[6px] px-[20px] py-[12px] bg-transparent border border-dashed border-[#c0c0c8] rounded-[12px] text-[14px] font-medium text-[#464646] hover:border-[#ec5b16] hover:text-[#ec5b16] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isSkipping ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Starting...
-            </>
-          ) : (
-            <>
-              <RecordingIcon />
-              Skip and Record
-            </>
-          )}
-        </button>
+        {/* Skip button */}
+        {showSkipButton && (
+          <button
+            type="button"
+            onClick={() => onSkip()}
+            disabled={isDisabled}
+            className="w-full flex items-center justify-center gap-[6px] px-[20px] py-[12px] bg-transparent border border-dashed border-[#c0c0c8] rounded-[12px] text-[14px] font-medium text-[#464646] hover:border-[#ec5b16] hover:text-[#ec5b16] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isSkipping ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {skipButtonLoadingLabel}
+              </>
+            ) : (
+              <>
+                <RecordingIcon />
+                {skipButtonLabel}
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

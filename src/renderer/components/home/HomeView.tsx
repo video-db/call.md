@@ -390,12 +390,18 @@ function PermissionItem({
 // Calendar Event Item Component
 function CalendarEventItem({
   event,
+  displayName,
+  isPrepared,
   notifyEnabled,
   onToggleNotify,
+  onClick,
 }: {
   event: UpcomingMeeting;
+  displayName: string;
+  isPrepared: boolean;
   notifyEnabled: boolean;
   onToggleNotify: (enabled: boolean) => void;
+  onClick?: () => void;
 }) {
   const formatTime = (date: Date | string) => {
     const d = typeof date === 'string' ? new Date(date) : date;
@@ -403,12 +409,24 @@ function CalendarEventItem({
   };
 
   return (
-    <div className="bg-white border border-[#ededf3] rounded-[10px] px-[15px] py-[13px]">
+    <div
+      className={`bg-white border rounded-[10px] px-[15px] py-[13px] cursor-pointer hover:border-[#ec5b16] hover:bg-[#fff9f5] transition-colors ${
+        isPrepared ? 'border-[#ec5b16] border-opacity-50' : 'border-[#ededf3]'
+      }`}
+      onClick={onClick}
+    >
       <div className="flex items-start">
         <div className="flex-1 flex flex-col gap-[10px]">
-          <p className="text-[14px] font-medium text-black tracking-[0.07px] line-clamp-1">
-            {event.summary}
-          </p>
+          <div className="flex items-center gap-[8px]">
+            <p className="text-[14px] font-medium text-black tracking-[0.07px] line-clamp-1 flex-1">
+              {displayName}
+            </p>
+            {isPrepared && (
+              <span className="text-[10px] font-medium text-[#ec5b16] bg-[#fff5ec] px-[6px] py-[2px] rounded-[4px] shrink-0">
+                Prepared
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-[12px]">
             <div className="flex items-center gap-[4px] flex-1">
               <ClockIcon />
@@ -416,7 +434,9 @@ function CalendarEventItem({
                 {formatTime(event.startTime)} - {formatTime(event.endTime)}
               </span>
             </div>
-            <Toggle enabled={notifyEnabled} onChange={onToggleNotify} size="small" />
+            <div onClick={(e) => e.stopPropagation()}>
+              <Toggle enabled={notifyEnabled} onChange={onToggleNotify} size="small" />
+            </div>
           </div>
         </div>
       </div>
@@ -486,6 +506,7 @@ interface HomeViewProps {
   onStartRecording: () => void;
   onNavigateToHistory: () => void;
   onNavigateToSettings: (tab?: 'account' | 'notifications' | 'mcpServers' | 'workflows') => void;
+  onPrepareMeeting?: (event: UpcomingMeeting) => void;
 }
 
 interface WorkflowData {
@@ -495,11 +516,12 @@ interface WorkflowData {
   enabled: boolean;
 }
 
-export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSettings }: HomeViewProps) {
+export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSettings, onPrepareMeeting }: HomeViewProps) {
   const [selectedRecordingId, setSelectedRecordingId] = useState<number | null>(null);
   const [calendarStatus, setCalendarStatus] = useState<'disconnected' | 'connected' | 'loading'>('loading');
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingMeeting[]>([]);
   const [eventNotifications, setEventNotifications] = useState<Record<string, boolean>>({});
+  const [preparedMeetings, setPreparedMeetings] = useState<Record<string, { name: string }>>({});
   const [workflows, setWorkflows] = useState<WorkflowData[]>([]);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const { enabled: notificationsEnabled, openSettings: openNotificationSettings } =
@@ -588,6 +610,26 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
   const handleToggleNotifications = async () => {
     await openNotificationSettings();
   };
+
+  // Fetch prepared meetings to show custom names
+  const fetchPreparedMeetings = useCallback(async () => {
+    try {
+      const result = await window.electronAPI.preparedMeetings.getAll();
+      if (result.success && result.meetings) {
+        const prepared: Record<string, { name: string }> = {};
+        for (const meeting of result.meetings) {
+          prepared[meeting.calendarEventId] = { name: meeting.name };
+        }
+        setPreparedMeetings(prepared);
+      }
+    } catch {
+      // Ignore errors
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPreparedMeetings();
+  }, [fetchPreparedMeetings, upcomingEvents]);
 
   // Load workflows
   useEffect(() => {
@@ -821,16 +863,22 @@ export function HomeView({ onStartRecording, onNavigateToHistory, onNavigateToSe
             </div>
           ) : (
             <div className="flex flex-col gap-[10px]">
-              {upcomingEvents.map((event) => (
-                <CalendarEventItem
-                  key={event.id}
-                  event={event}
-                  notifyEnabled={eventNotifications[event.id] ?? true}
-                  onToggleNotify={(enabled) =>
-                    setEventNotifications((prev) => ({ ...prev, [event.id]: enabled }))
-                  }
-                />
-              ))}
+              {upcomingEvents.map((event) => {
+                const prepared = preparedMeetings[event.id];
+                return (
+                  <CalendarEventItem
+                    key={event.id}
+                    event={event}
+                    displayName={prepared?.name || event.summary}
+                    isPrepared={!!prepared}
+                    notifyEnabled={eventNotifications[event.id] ?? true}
+                    onToggleNotify={(enabled) =>
+                      setEventNotifications((prev) => ({ ...prev, [event.id]: enabled }))
+                    }
+                    onClick={() => onPrepareMeeting?.(event)}
+                  />
+                );
+              })}
             </div>
           )}
         </div>

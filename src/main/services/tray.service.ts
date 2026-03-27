@@ -10,6 +10,7 @@ import path from 'path';
 import { logger } from '../lib/logger';
 import { getCalendarPoller } from './calendar-poller.service';
 import { setAppQuitting } from '../index';
+import { getAllPreparedMeetings } from '../db';
 import type { UpcomingMeeting } from '../../shared/types/calendar.types';
 
 const log = logger.child({ module: 'tray' });
@@ -85,6 +86,17 @@ class TrayService {
 
     const menuItems: Electron.MenuItemConstructorOptions[] = [];
 
+    // Get prepared meetings to show custom names
+    let preparedNames: Record<string, string> = {};
+    try {
+      const prepared = getAllPreparedMeetings();
+      for (const p of prepared) {
+        preparedNames[p.calendarEventId] = p.name;
+      }
+    } catch {
+      // Ignore - DB might not be ready
+    }
+
     // Add upcoming events (max 8)
     if (events.length > 0) {
       const displayEvents = events.slice(0, 8);
@@ -94,7 +106,10 @@ class TrayService {
           ? 'All day'
           : event.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        const label = `${time}  ${event.summary}`;
+        // Use prepared name if available, otherwise use calendar summary
+        const displayName = preparedNames[event.id] || event.summary;
+        const isPrepared = !!preparedNames[event.id];
+        const label = isPrepared ? `${time}  ✓ ${displayName}` : `${time}  ${displayName}`;
 
         menuItems.push({
           label,
@@ -139,8 +154,9 @@ class TrayService {
     if (events.length > 0 && !events[0].isAllDay) {
       const next = events[0];
       const mins = next.minutesUntil;
+      const displayName = preparedNames[next.id] || next.summary;
       if (mins <= 60) {
-        this.tray.setToolTip(`Call.md - "${next.summary}" in ${mins}m`);
+        this.tray.setToolTip(`Call.md - "${displayName}" in ${mins}m`);
       } else {
         this.tray.setToolTip('Call.md');
       }

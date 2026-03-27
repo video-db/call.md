@@ -67,6 +67,13 @@ interface ChecklistStepProps {
   onBack: () => void;
   onStart: () => void;
   onSkip: () => void;
+  primaryButtonLabel?: string;
+  primaryButtonLoadingLabel?: string;
+  skipButtonLabel?: string;
+  skipButtonLoadingLabel?: string;
+  showSkipButton?: boolean;
+  headingTitle?: string;
+  headingSubtitle?: string;
 }
 
 export function ChecklistStep({
@@ -78,6 +85,13 @@ export function ChecklistStep({
   onBack,
   onStart,
   onSkip,
+  primaryButtonLabel = 'Start Recording',
+  primaryButtonLoadingLabel = 'Starting...',
+  skipButtonLabel = 'Skip and Record',
+  skipButtonLoadingLabel = 'Starting...',
+  showSkipButton = true,
+  headingTitle = 'Ready to Start',
+  headingSubtitle = 'Your meeting checklist is ready',
 }: ChecklistStepProps) {
   const isDisabled = isStarting || isSkipping;
 
@@ -88,10 +102,10 @@ export function ChecklistStep({
         <ChecklistIcon />
         <div className="flex flex-col items-center gap-[8px]">
           <h1 className="text-[22px] font-semibold text-black text-center tracking-[-0.44px] leading-[33px]">
-            Ready to Start
+            {headingTitle}
           </h1>
           <p className="text-[14px] font-normal text-[#464646] text-center leading-[21px]">
-            Your meeting checklist is ready
+            {headingSubtitle}
           </p>
         </div>
       </div>
@@ -146,36 +160,38 @@ export function ChecklistStep({
             {isStarting && !isSkipping ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Starting...
+                {primaryButtonLoadingLabel}
               </>
             ) : (
               <>
                 <RecordingIcon />
-                Start Recording
+                {primaryButtonLabel}
               </>
             )}
           </button>
         </div>
 
-        {/* Skip and Record button */}
-        <button
-          type="button"
-          onClick={() => onSkip()}
-          disabled={isDisabled}
-          className="w-full flex items-center justify-center gap-[6px] px-[20px] py-[12px] bg-transparent border border-dashed border-[#c0c0c8] rounded-[12px] text-[14px] font-medium text-[#464646] hover:border-[#ec5b16] hover:text-[#ec5b16] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isSkipping ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Starting...
-            </>
-          ) : (
-            <>
-              <SkipRecordingIcon />
-              Skip and Record
-            </>
-          )}
-        </button>
+        {/* Skip button */}
+        {showSkipButton && (
+          <button
+            type="button"
+            onClick={() => onSkip()}
+            disabled={isDisabled}
+            className="w-full flex items-center justify-center gap-[6px] px-[20px] py-[12px] bg-transparent border border-dashed border-[#c0c0c8] rounded-[12px] text-[14px] font-medium text-[#464646] hover:border-[#ec5b16] hover:text-[#ec5b16] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isSkipping ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {skipButtonLoadingLabel}
+              </>
+            ) : (
+              <>
+                <SkipRecordingIcon />
+                {skipButtonLabel}
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

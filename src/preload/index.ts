@@ -8,6 +8,8 @@ import type {
   CalendarEventsResult,
   CalendarAuthStatusResult,
   UpcomingMeeting,
+  PreparedMeetingsApi,
+  PreparedMeetingInput,
 } from '../shared/types/calendar.types';
 
 type NotificationGlobalShim = {
@@ -630,6 +632,14 @@ const api: IpcApi = {
     delete: (id: string) => ipcRenderer.invoke('workflows:delete', id),
     test: (webhookUrl: string) => ipcRenderer.invoke('workflows:test', webhookUrl),
   } as WorkflowApi,
+
+  // Prepared Meetings API
+  preparedMeetings: {
+    get: (calendarEventId: string) => ipcRenderer.invoke('prepared-meeting:get', calendarEventId),
+    getAll: () => ipcRenderer.invoke('prepared-meeting:get-all'),
+    save: (data: PreparedMeetingInput) => ipcRenderer.invoke('prepared-meeting:save', data),
+    delete: (calendarEventId: string) => ipcRenderer.invoke('prepared-meeting:delete', calendarEventId),
+  } as PreparedMeetingsApi,
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);
@@ -645,6 +655,7 @@ declare global {
       calendar: CalendarApi;
       calendarOn: CalendarEvents;
       workflows: WorkflowApi;
+      preparedMeetings: PreparedMeetingsApi;
     };
   }
 }

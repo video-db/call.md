@@ -385,3 +385,20 @@ export const workflows = sqliteTable('workflows', {
 
 export type Workflow = typeof workflows.$inferSelect;
 export type NewWorkflow = typeof workflows.$inferInsert;
+
+/**
+ * Prepared Meetings
+ * Stores pre-filled meeting context for calendar events before they start
+ */
+export const preparedMeetings = sqliteTable('prepared_meetings', {
+  calendarEventId: text('calendar_event_id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  probingQuestions: text('probing_questions'), // JSON: ProbingQuestion[]
+  checklist: text('checklist'), // JSON: string[]
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
+export type PreparedMeeting = typeof preparedMeetings.$inferSelect;
+export type NewPreparedMeeting = typeof preparedMeetings.$inferInsert;

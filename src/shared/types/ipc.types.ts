@@ -3,6 +3,7 @@ import type {
   CalendarApi,
   CalendarEvents,
   UpcomingMeeting,
+  PreparedMeetingsApi,
 } from './calendar.types';
 import type { Workflow } from './workflow.types';
 
@@ -289,6 +290,7 @@ export interface IpcApi {
   calendar: CalendarApi;
   calendarOn: CalendarEvents;
   workflows: WorkflowsApi;
+  preparedMeetings: PreparedMeetingsApi;
 }
 
 export type IpcChannel =

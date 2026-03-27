@@ -101,9 +101,16 @@ export function useGlobalRecorderEvents() {
               rtstreamName: visualData.rtstreamName,
             });
 
+            // Forward to live assist for real-time analysis
+            const currentApi = getElectronAPI();
+            if (currentApi) {
+              currentApi.liveAssist.addVisualIndex(visualData.text).catch((err: Error) => {
+                console.warn('[GlobalRecorderEvents] Error forwarding visual index to live assist:', err);
+              });
+            }
+
             // Save to database for durable storage
             const currentSession = useSessionStore.getState();
-            const currentApi = getElectronAPI();
             if (currentSession.recordingId && currentSession.sessionId && currentApi) {
               // Convert epoch ms timestamps to seconds from call start
               const callStartSec = currentSession.startTime ? currentSession.startTime / 1000 : visualData.start;

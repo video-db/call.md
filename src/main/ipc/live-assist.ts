@@ -7,6 +7,7 @@
 
 import { ipcMain, BrowserWindow } from 'electron';
 import { getLiveAssistService, resetLiveAssistService } from '../services/live-assist.service';
+import type { MeetingContext } from '../services/live-assist.service';
 import { getMCPInferenceService, resetMCPInferenceService } from '../services/mcp-inference.service';
 import { createChildLogger } from '../lib/logger';
 import { updateWidgetLiveAssist } from './widget';
@@ -29,8 +30,8 @@ export function setLiveAssistWindow(window: BrowserWindow): void {
 
 export function setupLiveAssistHandlers(): void {
   // Start live assist (also starts MCP inference)
-  ipcMain.handle('live-assist:start', async () => {
-    logger.info('Starting live assist and MCP inference');
+  ipcMain.handle('live-assist:start', async (_event, context?: MeetingContext) => {
+    logger.info({ hasContext: !!context }, 'Starting live assist and MCP inference');
 
     // Start Live Assist service
     const liveAssistService = getLiveAssistService();
@@ -44,7 +45,7 @@ export function setupLiveAssistHandlers(): void {
         askThis: event.insights.ask_this,
       });
     });
-    liveAssistService.start();
+    liveAssistService.start(context);
 
     // Start MCP Inference service
     const mcpInferenceService = getMCPInferenceService();
@@ -79,6 +80,14 @@ export function setupLiveAssistHandlers(): void {
 
     const mcpInferenceService = getMCPInferenceService();
     mcpInferenceService.addTranscript(text, source);
+
+    return { success: true };
+  });
+
+  // Add visual index (called when screen analysis is received)
+  ipcMain.handle('live-assist:add-visual-index', async (_event, text: string) => {
+    const liveAssistService = getLiveAssistService();
+    liveAssistService.addVisualIndex(text);
 
     return { success: true };
   });

@@ -168,13 +168,8 @@ function Header({ title, recordingId, createdAt, duration, playerUrl, onBack }: 
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>('idle');
   const [exportOpen, setExportOpen] = useState(false);
   const [downloadingVideo, setDownloadingVideo] = useState(false);
-  const [downloadingTranscript, setDownloadingTranscript] = useState(false);
 
   const downloadVideoMutation = trpc.recordings.downloadVideo.useMutation();
-  const { data: transcript } = trpc.recordings.getTranscript.useQuery(
-    { recordingId },
-    { enabled: !!recordingId }
-  );
 
   const handleCopyLink = async () => {
     if (!playerUrl || copyState !== 'idle') return;
@@ -196,29 +191,6 @@ function Header({ title, recordingId, createdAt, duration, playerUrl, onBack }: 
     } finally {
       setDownloadingVideo(false);
     }
-  };
-
-  const handleDownloadTranscript = () => {
-    if (!transcript || transcript.length === 0) return;
-    setDownloadingTranscript(true);
-    setExportOpen(false);
-
-    const content = transcript.map(seg => {
-      const mins = Math.floor(seg.startTime / 60);
-      const secs = Math.floor(seg.startTime % 60);
-      const time = `${mins}:${secs.toString().padStart(2, '0')}`;
-      const speaker = seg.channel === 'me' ? 'You' : 'Them';
-      return `[${time}] ${speaker}: ${seg.text}`;
-    }).join('\n\n');
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title.replace(/[^a-z0-9]/gi, '_')}_transcript.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setDownloadingTranscript(false);
   };
 
   return (
@@ -267,7 +239,7 @@ function Header({ title, recordingId, createdAt, duration, playerUrl, onBack }: 
         <div className="relative">
           <button
             onClick={() => setExportOpen(!exportOpen)}
-            disabled={downloadingVideo || downloadingTranscript}
+            disabled={downloadingVideo}
             className={cn(
               "flex items-center gap-[6px] border rounded-[12px] px-[16px] py-[12px] shadow-[0px_1.27px_15.27px_0px_rgba(0,0,0,0.05)] transition-colors",
               exportOpen
@@ -275,7 +247,7 @@ function Header({ title, recordingId, createdAt, duration, playerUrl, onBack }: 
                 : "bg-white border-[#efefef] hover:bg-[#efefef] hover:border-[#969696]"
             )}
           >
-            {downloadingVideo || downloadingTranscript ? (
+            {downloadingVideo ? (
               <Loader2 className="h-5 w-5 text-black animate-spin" />
             ) : (
               <Upload className="h-5 w-5 text-black" />
@@ -297,14 +269,6 @@ function Header({ title, recordingId, createdAt, duration, playerUrl, onBack }: 
                 >
                   <Video className="h-5 w-5 text-black" />
                   <span className="text-[13px] font-medium text-black">Video</span>
-                </button>
-                <button
-                  onClick={handleDownloadTranscript}
-                  disabled={!transcript || transcript.length === 0}
-                  className="w-full flex items-center gap-[6px] px-[10px] py-[8px] rounded-[10px] hover:bg-[#efefef] transition-colors disabled:opacity-50"
-                >
-                  <FileText className="h-5 w-5 text-black" />
-                  <span className="text-[13px] font-medium text-black">Transcript</span>
                 </button>
               </div>
             </>

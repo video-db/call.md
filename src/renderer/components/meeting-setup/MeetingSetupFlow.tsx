@@ -53,22 +53,68 @@ export function MeetingSetupFlow({ onCancel }: MeetingSetupFlowProps) {
     setStep('info');
   }, [setStep]);
 
-  // Skip setup and start recording with whatever data is already filled
-  // Accepts optional overrides for name/description from local step state
+  // Skip setup and start recording
+  // If description or answered questions exist, generate checklist first
+  // Otherwise skip directly to recording
   const handleSkipAndRecord = async (overrideName?: string, overrideDescription?: string) => {
-
     const finalName = (overrideName ?? name).trim() || generateDefaultMeetingName();
     const finalDescription = (overrideDescription ?? description).trim();
 
     // Update store so RecordingHeader can display the correct name
     setInfo(finalName, finalDescription);
 
-    await startRecording({
-      name: finalName,
-      description: finalDescription,
-      questions: questions.filter(q => q.answer), // Only include answered questions
-      checklist,
-    });
+    const answeredQuestions = questions.filter(q => q.answer);
+    const hasContext = finalDescription || answeredQuestions.length > 0;
+
+    if (hasContext) {
+      // Generate checklist first if we have description or answered questions
+      setIsGenerating(true);
+      setError(null);
+
+      try {
+        const result = await generateChecklistMutation.mutateAsync({
+          name: finalName,
+          description: finalDescription,
+          questions: answeredQuestions,
+        });
+
+        if (result.success && result.checklist.length > 0) {
+          setChecklist(result.checklist);
+          await startRecording({
+            name: finalName,
+            description: finalDescription,
+            questions: answeredQuestions,
+            checklist: result.checklist,
+          });
+        } else {
+          // Checklist generation returned empty, proceed to recording
+          await startRecording({
+            name: finalName,
+            description: finalDescription,
+            questions: answeredQuestions,
+            checklist: [],
+          });
+        }
+      } catch {
+        // Checklist generation failed, proceed to recording
+        await startRecording({
+          name: finalName,
+          description: finalDescription,
+          questions: answeredQuestions,
+          checklist: [],
+        });
+      } finally {
+        setIsGenerating(false);
+      }
+    } else {
+      // No context (only name or empty), skip directly to recording
+      await startRecording({
+        name: finalName,
+        description: finalDescription,
+        questions: [],
+        checklist: [],
+      });
+    }
   };
 
   const handleInfoNext = async (newName: string, newDescription: string) => {

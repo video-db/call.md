@@ -10,6 +10,7 @@ import { EventEmitter } from 'events';
 import { logger } from '../lib/logger';
 import { getLLMService } from './llm.service';
 import type { LiveInsights } from '../../shared/types/live-assist.types';
+import type { ProbingQuestion } from '../../shared/types/meeting-setup.types';
 
 const log = logger.child({ module: 'live-assist' });
 
@@ -18,6 +19,15 @@ const LIVE_ASSIST_INTERVAL_MS = 20000; // 20 seconds
 const SYSTEM_PROMPT = `You are a live meeting coach. You receive a rolling 20-second transcript from an ongoing meeting. Your job is to surface helpful nudges for the User.
 
 IMPORTANT: All assistance must be directed to the "User" (labeled as [User] in the transcript). Only help the User — do NOT provide assistance for what the other meeting participants (labeled as [Them]) might need. Focus exclusively on what the User can say or ask.
+
+---
+
+## CONTEXT YOU MAY RECEIVE
+
+You may receive additional context sections before the transcript:
+
+- **MEETING CONTEXT**: Meeting name, purpose, prep notes, and goals. Use this to keep suggestions aligned with what the User wants to accomplish.
+- **SCREEN CONTENT**: Description of what's on screen. Only use this if it's directly relevant to the current conversation — ignore generic UI descriptions or unrelated content.
 
 ---
 
@@ -62,9 +72,21 @@ Return a JSON object with two arrays of strings:
 - Write as ready-to-use first-person lines.
 - Only output the JSON, nothing else.`;
 
+export interface MeetingContext {
+  name?: string;
+  description?: string;
+  questions?: ProbingQuestion[];
+  checklist?: string[];
+}
+
 interface TranscriptChunk {
   text: string;
   source: 'mic' | 'system_audio';
+  timestamp: number;
+}
+
+interface VisualIndexChunk {
+  text: string;
   timestamp: number;
 }
 
@@ -72,25 +94,29 @@ class LiveAssistService extends EventEmitter {
   private intervalTimer: NodeJS.Timeout | null = null;
   private isRunning = false;
   private transcriptBuffer: TranscriptChunk[] = [];
+  private visualIndexBuffer: VisualIndexChunk[] = [];
   private previousSayThis: Set<string> = new Set();
   private previousAskThis: Set<string> = new Set();
   private lastProcessedTimestamp = 0;
+  private meetingContext: MeetingContext | null = null;
 
   /**
    * Start the live assist loop
    */
-  start(): void {
+  start(context?: MeetingContext): void {
     if (this.isRunning) {
       log.warn('Live assist already running');
       return;
     }
 
-    log.info('Starting live assist service');
+    log.info({ context: context ? { name: context.name, hasDescription: !!context.description } : null }, 'Starting live assist service');
     this.isRunning = true;
     this.transcriptBuffer = [];
+    this.visualIndexBuffer = [];
     this.previousSayThis.clear();
     this.previousAskThis.clear();
     this.lastProcessedTimestamp = Date.now();
+    this.meetingContext = context || null;
 
     // Run immediately, then every 20 seconds
     this.processTranscript();
@@ -114,8 +140,10 @@ class LiveAssistService extends EventEmitter {
     }
 
     this.transcriptBuffer = [];
+    this.visualIndexBuffer = [];
     this.previousSayThis.clear();
     this.previousAskThis.clear();
+    this.meetingContext = null;
   }
 
   /**
@@ -133,6 +161,68 @@ class LiveAssistService extends EventEmitter {
     // Keep only last 60 seconds of transcript for context
     const cutoff = Date.now() - 60000;
     this.transcriptBuffer = this.transcriptBuffer.filter(t => t.timestamp > cutoff);
+  }
+
+  /**
+   * Add a visual index event to the buffer
+   */
+  addVisualIndex(text: string): void {
+    if (!this.isRunning) return;
+
+    this.visualIndexBuffer.push({
+      text,
+      timestamp: Date.now(),
+    });
+
+    // Keep only last 60 seconds of visual index for context
+    const cutoff = Date.now() - 60000;
+    this.visualIndexBuffer = this.visualIndexBuffer.filter(v => v.timestamp > cutoff);
+  }
+
+  /**
+   * Build meeting context section for prompt (only if context exists)
+   */
+  private buildMeetingContextSection(): string {
+    if (!this.meetingContext) return '';
+
+    const parts: string[] = [];
+
+    if (this.meetingContext.name) {
+      parts.push(`Meeting: ${this.meetingContext.name}`);
+    }
+
+    if (this.meetingContext.description) {
+      parts.push(`Purpose: ${this.meetingContext.description}`);
+    }
+
+    if (this.meetingContext.questions && this.meetingContext.questions.length > 0) {
+      const answeredQuestions = this.meetingContext.questions
+        .filter(q => q.answer)
+        .map(q => `- ${q.question}: ${q.answer}`)
+        .join('\n');
+      if (answeredQuestions) {
+        parts.push(`Key context from prep:\n${answeredQuestions}`);
+      }
+    }
+
+    if (this.meetingContext.checklist && this.meetingContext.checklist.length > 0) {
+      parts.push(`Goals to cover:\n${this.meetingContext.checklist.map(c => `- ${c}`).join('\n')}`);
+    }
+
+    if (parts.length === 0) return '';
+
+    return `## MEETING CONTEXT\n${parts.join('\n\n')}\n\n---\n\n`;
+  }
+
+  /**
+   * Build visual index section for prompt (only if recent visual data exists)
+   */
+  private buildVisualIndexSection(cutoff: number): string {
+    const recentVisuals = this.visualIndexBuffer.filter(v => v.timestamp > cutoff);
+    if (recentVisuals.length === 0) return '';
+
+    const visualText = recentVisuals.map(v => v.text).join('\n');
+    return `## SCREEN CONTENT (use only if relevant to the meeting)\n${visualText}\n\n---\n\n`;
   }
 
   /**
@@ -158,13 +248,19 @@ class LiveAssistService extends EventEmitter {
       })
       .join('\n');
 
-    log.info({ chunkCount: recentChunks.length, textLength: transcriptText.length }, 'Processing transcript for live assist');
+    // Build context sections (only included if they have content)
+    const meetingContextSection = this.buildMeetingContextSection();
+    const visualIndexSection = this.buildVisualIndexSection(cutoff);
+
+    const userPrompt = `${meetingContextSection}${visualIndexSection}## TRANSCRIPT\n${transcriptText}`;
+
+    log.info({ chunkCount: recentChunks.length, textLength: transcriptText.length, hasContext: !!meetingContextSection, hasVisual: !!visualIndexSection }, 'Processing transcript for live assist');
 
     try {
       const llm = getLLMService();
       const response = await llm.chatCompletionJSON<LiveInsights>([
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Analyze this transcript chunk:\n\n${transcriptText}` },
+        { role: 'user', content: userPrompt },
       ]);
 
       if (!response.success || !response.data) {
@@ -215,8 +311,10 @@ class LiveAssistService extends EventEmitter {
    */
   clear(): void {
     this.transcriptBuffer = [];
+    this.visualIndexBuffer = [];
     this.previousSayThis.clear();
     this.previousAskThis.clear();
+    this.meetingContext = null;
   }
 }
 

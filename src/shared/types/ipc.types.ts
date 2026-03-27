@@ -168,10 +168,18 @@ export interface CopilotConfig {
   enableNudges: boolean;
 }
 
+export interface LiveAssistMeetingContext {
+  name?: string;
+  description?: string;
+  questions?: Array<{ question: string; answer: string }>;
+  checklist?: string[];
+}
+
 export interface LiveAssistApi {
-  start: () => Promise<{ success: boolean }>;
+  start: (context?: LiveAssistMeetingContext) => Promise<{ success: boolean }>;
   stop: () => Promise<{ success: boolean }>;
   addTranscript: (text: string, source: 'mic' | 'system_audio') => Promise<{ success: boolean }>;
+  addVisualIndex: (text: string) => Promise<{ success: boolean }>;
   clear: () => Promise<{ success: boolean }>;
 }
 

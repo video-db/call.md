@@ -331,10 +331,13 @@ const api: IpcApi = {
   },
 
   liveAssist: {
-    start: () => ipcRenderer.invoke('live-assist:start'),
+    start: (context?: { name?: string; description?: string; questions?: Array<{ question: string; answer: string }>; checklist?: string[] }) =>
+      ipcRenderer.invoke('live-assist:start', context),
     stop: () => ipcRenderer.invoke('live-assist:stop'),
     addTranscript: (text: string, source: 'mic' | 'system_audio') =>
       ipcRenderer.invoke('live-assist:add-transcript', text, source),
+    addVisualIndex: (text: string) =>
+      ipcRenderer.invoke('live-assist:add-visual-index', text),
     clear: () => ipcRenderer.invoke('live-assist:clear'),
   },
 

@@ -140,6 +140,7 @@ export function RecordingDetailPage({ recordingId, onBack }: RecordingDetailPage
           {/* Chat with Video Button */}
           <div className="flex justify-center">
             <ChatWithVideoButton
+              title={title}
               videoId={recording.videoId}
               collectionId={collectionId}
               disabled={!isVideoReady}
@@ -533,15 +534,16 @@ function VideoPlayerSection({ playerUrl, isReady }: VideoPlayerSectionProps) {
 }
 
 interface ChatWithVideoButtonProps {
+  title: string
   videoId: string | null | undefined;
   collectionId: string | null | undefined;
   disabled: boolean;
 }
 
-function ChatWithVideoButton({ videoId, collectionId, disabled }: ChatWithVideoButtonProps) {
+function ChatWithVideoButton({ title, videoId, collectionId, disabled }: ChatWithVideoButtonProps) {
   const handleClick = () => {
     if (!videoId || !collectionId) return;
-    const chatUrl = `https://chat.videodb.io?video_id=${videoId}&collection_id=${collectionId}`;
+    const chatUrl = `https://chat.videodb.io?video_id=${videoId}&collection_id=${collectionId}&prompt=${title}`;
     window.electronAPI?.app.openExternalLink(chatUrl);
   };
 

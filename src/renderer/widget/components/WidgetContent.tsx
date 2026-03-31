@@ -1,5 +1,4 @@
-import React from 'react';
-import { VisualAnalysisCard } from './VisualAnalysisCard';
+import React, { useEffect, useRef } from 'react';
 import { SayThisCard } from './SayThisCard';
 import { AskThisCard } from './AskThisCard';
 import { EmptyState } from './EmptyState';
@@ -21,7 +20,6 @@ interface Nudge {
 interface WidgetContentProps {
   sayThis: InsightCard[];
   askThis: InsightCard[];
-  visualDescription: string;
   nudge?: Nudge | null;
   onDismissCard: (type: 'sayThis' | 'askThis', id: string) => void;
   onDismissNudge?: () => void;
@@ -46,18 +44,34 @@ function getInterleavedCards(
 export function WidgetContent({
   sayThis,
   askThis,
-  visualDescription,
   nudge,
   onDismissCard,
   onDismissNudge,
 }: WidgetContentProps) {
   const hasCards = sayThis.length > 0 || askThis.length > 0;
-  const isEmpty = !hasCards && !visualDescription;
+  const isEmpty = !hasCards;
 
   const interleavedCards = getInterleavedCards(sayThis, askThis);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTimeRef = useRef<number>(0);
+
+  const handleScroll = () => {
+    lastScrollTimeRef.current = Date.now();
+  };
+
+  // Auto-scroll to top when new cards arrive (if user hasn't scrolled recently)
+  useEffect(() => {
+    const timeSinceLastScroll = Date.now() - lastScrollTimeRef.current;
+    if (timeSinceLastScroll > 2000 && containerRef.current) {
+      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [sayThis, askThis]);
+
   return (
     <div
+      ref={containerRef}
+      onScroll={handleScroll}
       className="flex-1 min-h-0 flex flex-col overflow-y-auto"
       style={{
         padding: '20px 16px',
@@ -76,11 +90,6 @@ export function WidgetContent({
         <EmptyState />
       ) : (
         <>
-          {/* Visual Analysis - sticky at top */}
-          {visualDescription && (
-            <VisualAnalysisCard description={visualDescription} />
-          )}
-
           {/* Interleaved Say This / Ask This cards */}
           {interleavedCards.map(({ type, card }) =>
             type === 'sayThis' ? (

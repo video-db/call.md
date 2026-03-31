@@ -19,7 +19,6 @@ export function WidgetApp() {
   });
   const [sayThis, setSayThis] = useState<InsightCard[]>([]);
   const [askThis, setAskThis] = useState<InsightCard[]>([]);
-  const [visualDescription, setVisualDescription] = useState<string>('');
   const [nudge, setNudge] = useState<Nudge | null>(null);
 
   useEffect(() => {
@@ -39,10 +38,6 @@ export function WidgetApp() {
       setAskThis(data.askThis);
     });
 
-    const unsubVisual = api.onVisualAnalysis((data) => {
-      setVisualDescription(data.description);
-    });
-
     const unsubNudge = api.onNudge((n) => {
       setNudge(n);
     });
@@ -50,7 +45,6 @@ export function WidgetApp() {
     return () => {
       unsubSession();
       unsubLiveAssist();
-      unsubVisual();
       unsubNudge();
     };
   }, []);
@@ -106,7 +100,6 @@ export function WidgetApp() {
       <WidgetContent
         sayThis={sayThis}
         askThis={askThis}
-        visualDescription={visualDescription}
         nudge={nudge}
         onDismissCard={handleDismissCard}
         onDismissNudge={handleDismissNudge}

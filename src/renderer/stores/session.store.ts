@@ -16,6 +16,8 @@ interface SessionState {
   tokenExpiresAt: number | null;
   startTime: number | null;
   elapsedTime: number;
+  accumulatedTime: number; // Time accumulated before current recording segment (excludes paused time)
+  lastResumeTime: number | null; // When the current recording segment started
   streams: StreamState;
   isPaused: boolean;
   error: string | null;
@@ -30,7 +32,8 @@ interface SessionState {
   setElapsedTime: (time: number) => void;
   toggleStream: (stream: keyof StreamState) => void;
   setStreams: (streams: Partial<StreamState>) => void;
-  setPaused: (paused: boolean) => void;
+  pauseTimer: () => void;
+  resumeTimer: () => void;
   setError: (error: string | null) => void;
   setScreenWsConnectionId: (id: string | null) => void;
   reset: () => void;
@@ -51,6 +54,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   tokenExpiresAt: null,
   startTime: null,
   elapsedTime: 0,
+  accumulatedTime: 0,
+  lastResumeTime: null,
   streams: initialStreams,
   isPaused: false,
   error: null,
@@ -61,13 +66,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setRecordingId: (id) => set({ recordingId: id }),
 
   startSession: (sessionId, sessionToken, expiresAt, screenWsConnectionId) => {
+    const now = Date.now();
     set({
       status: 'recording',
       sessionId,
       sessionToken,
       tokenExpiresAt: expiresAt,
-      startTime: Date.now(),
+      startTime: now,
       elapsedTime: 0,
+      accumulatedTime: 0,
+      lastResumeTime: now,
       isPaused: false,
       error: null,
       screenWsConnectionId: screenWsConnectionId || null,
@@ -80,6 +88,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       sessionId: null,
       startTime: null,
       elapsedTime: 0,
+      accumulatedTime: 0,
+      lastResumeTime: null,
       isPaused: false,
       screenWsConnectionId: null,
     });
@@ -113,7 +123,26 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     });
   },
 
-  setPaused: (paused) => set({ isPaused: paused }),
+  pauseTimer: () => {
+    const { lastResumeTime, accumulatedTime } = get();
+    if (lastResumeTime) {
+      const segmentTime = Math.floor((Date.now() - lastResumeTime) / 1000);
+      set({
+        isPaused: true,
+        accumulatedTime: accumulatedTime + segmentTime,
+        lastResumeTime: null,
+      });
+    } else {
+      set({ isPaused: true });
+    }
+  },
+
+  resumeTimer: () => {
+    set({
+      isPaused: false,
+      lastResumeTime: Date.now(),
+    });
+  },
 
   setError: (error) => set({ error }),
 
@@ -126,6 +155,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       recordingId: null,
       startTime: null,
       elapsedTime: 0,
+      accumulatedTime: 0,
+      lastResumeTime: null,
       streams: initialStreams,
       isPaused: false,
       error: null,

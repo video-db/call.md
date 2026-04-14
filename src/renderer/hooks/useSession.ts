@@ -33,10 +33,11 @@ export function useSession() {
   // Recorder events are global to prevent transcript loss on navigation.
 
   useEffect(() => {
-    if (sessionStore.status === 'recording' && sessionStore.startTime) {
+    if (sessionStore.status === 'recording' && !sessionStore.isPaused && sessionStore.lastResumeTime) {
       timerRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - sessionStore.startTime!) / 1000);
-        sessionStore.setElapsedTime(elapsed);
+        const currentSegmentTime = Math.floor((Date.now() - sessionStore.lastResumeTime!) / 1000);
+        const totalElapsed = sessionStore.accumulatedTime + currentSegmentTime;
+        sessionStore.setElapsedTime(totalElapsed);
       }, 1000);
     } else {
       if (timerRef.current) {
@@ -50,7 +51,7 @@ export function useSession() {
         clearInterval(timerRef.current);
       }
     };
-  }, [sessionStore.status, sessionStore.startTime]);
+  }, [sessionStore.status, sessionStore.isPaused, sessionStore.lastResumeTime]);
 
   const startRecording = useCallback(async (meetingSetup?: MeetingSetupData) => {
     console.log('[useSession] startRecording called with:', meetingSetup?.name);
@@ -275,7 +276,7 @@ export function useSession() {
     if (!api || sessionStore.status !== 'recording') return;
 
     await api.capture.pauseTracks(['mic', 'system_audio', 'screen']);
-    sessionStore.setPaused(true);
+    sessionStore.pauseTimer();
   }, [sessionStore]);
 
   const resumeRecording = useCallback(async () => {
@@ -283,7 +284,7 @@ export function useSession() {
     if (!api || sessionStore.status !== 'recording') return;
 
     await api.capture.resumeTracks(['mic', 'system_audio', 'screen']);
-    sessionStore.setPaused(false);
+    sessionStore.resumeTimer();
   }, [sessionStore]);
 
   return {
